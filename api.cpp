@@ -63,7 +63,7 @@ double calc(vector<int> mapSize, vector<PositionedWord> words, vector<int> rlen)
         }
         r = randomColor(), g = randomColor(), b = randomColor();
         int x = words[i].pos[0], y = words[i].pos[1], z = words[i].pos[2], d = words[i].dir;
-        cout << x << ' ' << y << ' ' << z << ' ' << d << ' ' << rlen[i] << endl;
+//        cout << x << ' ' << y << ' ' << z << ' ' << d << ' ' << rlen[i] << endl;
         for(int p = 0; p < rlen[i]; p++) {
             if (x < 0 || y < 0 || x >= mapSize[0] || y >= mapSize[1]) {
                 cout << "SIZE MISMATCH " << x << ' ' << y << ' ' << z << ' ' << words[i].id << ' ' << words[i].pos[0] << endl;

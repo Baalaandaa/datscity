@@ -84,7 +84,7 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
     vector<pair<int, pair<int, int>>> ftops;
     vector<thread> threads;
     mutex sol;
-    for (int base_idx = 0; base_idx < words.size(); base_idx++) {
+    for (int base_idx = 0; base_idx < min(100, (int)words.size()); base_idx++) {
         threads.emplace_back([&, base_idx]() {
             int base_x = 0;
             if (base_char != -1) {
@@ -143,7 +143,7 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                                 floor--;
                             }
                             if (tops.empty()) continue;
-                            mu.lock();
+                            sol.lock();
                             if (score > best_score) {
                                 best_score = score;
                                 found = true;
@@ -155,7 +155,7 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                                 flidx = lidx;
                                 fridx = ridx;
                             }
-                            mu.unlock();
+                            sol.unlock();
                             if (found) break;
                         }
                         if (found) break;
@@ -164,7 +164,7 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                 }
                 if (found) break;
             }
-            cout << base_idx << " success" << endl;
+//            cout << base_idx << " success" << endl;
         });
     }
     for (auto& thread : threads) {
@@ -210,6 +210,7 @@ int main() {
         while (true) {
             vector<word> words;
             map<pair<int, int>, vector<int>> wp;
+            map<int, int> word_idx;
             if (status.usedWords.size() >= 800) {
                 break;
             }
@@ -234,17 +235,52 @@ int main() {
             }
 
             sort(words.begin(), words.end(), cmp);
-
+            for(int i = 0; i < words.size(); i++) {
+                word_idx[words[i].idx] = i;
+            }
             idx = 0;
             for (const auto &w: words) {
                 auto &r = w.r;
                 for (int i = 0; i < r.size(); i++) {
-                    wp[{r.size() - i - 1, r[i]}].push_back(idx);
+                    wp[{0, r[i]}].push_back(idx);
                 }
 
                 idx++;
             }
             auto pw = findLadder(status.words, status.usedWords, status.mapSize);
+            vector<int> curr_used = status.usedWords;
+            int xMin = 1e9, xMax = -1;
+            for(const auto &w: pw) {
+                curr_used.push_back(w.id);
+                if (w.dir == 2) {
+                    xMin = min(xMin, w.pos[0]);
+                    xMax = max(xMax, w.pos[0] + (int) words[word_idx[w.id]].r.size());
+                }
+            }
+            auto base_word = words[word_idx[pw[0].id]];
+            auto connector = words[wp[{0, base_word.r[0]}][0]];
+            pw.push_back(PositionedWord{
+                .id = connector.idx,
+                .dir = 3,
+                .pos = {0, 0, 0}
+            });
+            curr_used.push_back(connector.idx);
+            for (int y = connector.r.size(); y >= 0; y--) {
+                auto nw = findLadder(status.words, curr_used, status.mapSize, connector.r[y], 0, xMin, xMax);
+                if (!nw.empty()) {
+                    for (auto &w : nw) {
+                        w.pos[1] = y;
+                        pw.push_back(w);
+                        curr_used.push_back(w.id);
+                        if (w.dir == 2) {
+                            xMin = min(xMin, w.pos[0]);
+                            xMax = max(xMax, w.pos[0] + (int) words[word_idx[w.id]].r.size());
+                        }
+                    }
+                    y--;
+                }
+                cout << y << ' ' << nw.size() << ' ' << xMin << ' ' << xMax << endl;
+            }
             int x_offs = 0;
             int y_offs = 0;
             for(const auto & i : pw) {
@@ -260,6 +296,7 @@ int main() {
                     .words = pw
             });
             Status st2 = words_wrapper();
+            cout << "used " << st2.usedWords.size() << endl;
 //        sleep(st2.nextTurnSec + 3);
             status = words_wrapper();
             while(true) {
