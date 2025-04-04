@@ -9,7 +9,7 @@ add_executable(datscity main.cpp viewer/ActiveSocket.cpp viewer/HTTPActiveSocket
 
 
 include_directories(${OPENSSL_INCLUDE_DIR})
-target_link_libraries(gameton_or ${OPENSSL_LIBRARIES})
+target_link_libraries(datscity ${OPENSSL_LIBRARIES})
 if(WIN32)
-    target_link_libraries(gameton_or wsock32 crypt32 ws2_32)
+    target_link_libraries(datscity wsock32 crypt32 ws2_32)
 endif()
