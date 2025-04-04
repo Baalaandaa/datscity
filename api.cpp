@@ -1,10 +1,110 @@
 #include "http.hpp"
 #include "model.cpp"
+#include "utils.cpp"
 using namespace std;
 
 httplib::Client cli("http://games-test.datsteam.dev");
 
 const string token = "2f97738c-ddab-4f24-8186-552c4620389c";
+
+vector<string> sim_words;
+vector<int> sim_used(0);
+int sim_turn = 0;
+double total_score = 0;
+
+Status simWords() {
+    return Status{
+        .mapSize = {30, 30, 100},
+        .nextTurnSec = 300,
+        .roundEndsAt = "unused",
+        .shuffleLeft = 3,
+        .turn = sim_turn,
+        .usedWords = sim_used,
+        .words = sim_words,
+    };
+}
+
+void simInit() {
+    ifstream fin("words.txt");
+    string s;
+    while(getline(fin, s)) {
+        if (!s.empty()) {
+            sim_words.push_back(s);
+        }
+    }
+}
+
+
+using idxs = vector<int>;
+double calc(vector<int> mapSize, vector<PositionedWord> words, vector<int> rlen) {
+    vector<vector<vector<idxs>>> wrld(mapSize[2], vector<vector<idxs>>(mapSize[0], vector<idxs> (mapSize[1])));
+    map<int, int> dens;
+    double score = 0;
+    for (int i = 0; i < words.size(); i++) {
+        if (words[i].dir == 2 || words[i].dir == 3) {
+            dens[words[i].pos[2]] += 1;
+        }
+        int x = words[i].pos[0], y = words[i].pos[1], z = words[i].pos[2], d = words[i].dir;
+        for(int p = 0; p < rlen[i]; p++) {
+            if (x < 0 || y < 0 || x >= mapSize[0] || y >= mapSize[1]) {
+                cout << "SIZE MISMATCH " << x << ' ' << y << ' ' << z << ' ' << words[i].id << ' ' << words[i].pos[0] << endl;
+            }
+            wrld[z][x][y].push_back(words[i].id);
+            p++;
+            if (d == 1) {
+                z++;
+            } else if (d == 2) {
+                x++;
+            } else {
+                y++;
+            }
+        }
+    }
+    for(int z = 0; z < wrld.size(); z++) {
+        int min_x = 1e9, min_y = 1e9, max_x=0, max_y=0, cnt = 0;
+        for(int x = 0; x < wrld[z].size(); x++) {
+            for(int y = 0; y < wrld[z].size(); y++) {
+                if (!wrld[z][x][y].empty()) {
+                    min_x = min(x, min_x);
+                    max_x = max(x, max_x);
+                    min_y = min(y, min_y);
+                    max_y = max(y, max_y);
+                    cnt++;
+                }
+            }
+        }
+        if (cnt == 0) continue;
+        int dx = max_x - min_x + 1;
+        int dy = max_y - min_y + 1;
+        score += cnt * (z + 1) * (min(dx, dy) / (double)max(dx, dy)) * (1 + (double)dens[z] / 4);
+    }
+    return score;
+}
+
+vector<DoneTower> sim_done_towers;
+
+BuildResponse simBuild(BuildRequest &req) {
+    vector<int> rlen;
+    for(const auto &w: req.words) {
+        auto r = from_utf8(sim_words[w.id]);
+        rlen.push_back(r.size());
+    }
+    for(const auto &w: req.words) {
+        sim_used.push_back(w.id);
+    }
+    double score = calc({30, 30, 100}, req.words, rlen);
+    cout << sim_turn << ' ' << score << endl;
+    total_score += score;
+    sim_done_towers.push_back({static_cast<int>(sim_done_towers.size()), score});
+    sim_turn++;
+    if (sim_turn == 27) {
+        cout << "TOTAL: " << total_score << endl;
+        exit(0);
+    }
+    return BuildResponse{
+        total_score, sim_done_towers, Tower{}
+    };
+}
 
 Status words() {
     try
@@ -34,7 +134,7 @@ Status words_wrapper(){
     std::thread t([&cv, &retValue]()
                   {
                       try {
-                          retValue = words();
+                          retValue = simWords();
                       } catch (exception e) {
                           return;
                       }
@@ -134,7 +234,7 @@ BuildResponse build_wrapper(BuildRequest req)
     std::thread t([&cv, &retValue, &req]()
                   {
                       try {
-                          retValue = build(req);
+                          retValue = simBuild(req);
                       } catch (exception e) {
                           return;
                       }

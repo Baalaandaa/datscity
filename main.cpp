@@ -1,10 +1,8 @@
 #include <iostream>
 #include "api.cpp"
-#include "utils.cpp"
 
 using namespace std;
 using runes = vector<int>;
-using idxs = vector<int>;
 
 struct word{
     runes r;
@@ -36,16 +34,34 @@ bool operator==(const dw &a, const dw &b) {
     return a.d == b.d && a.l == b.l && a.r == b.r;
 }
 
+
 int main() {
+    simInit();
     auto status = words_wrapper();
     while (true) {
-        vector<vector<vector<idxs>>> wrld(status.mapSize[0], vector<vector<idxs>>(status.mapSize[1], vector<idxs> (status.mapSize[2])));
+        if (status.usedWords.size() >= 800 ) {
+            break;
+        }
+//        for(int i = 0; i < status.words.size(); i++) {
+//            cout << status.words[i] << endl;
+//        }
+//        return 0;
         vector<word> words;
         map<pair<int, int>, vector<int>> wp;
         map<pair<int, pair<int, int>>, vector<int>> dw;
         int idx = 0;
-        int turn = status.turn;
         for (const auto &w: status.words) {
+            bool skip = false;
+            for (const auto used: status.usedWords) {
+                if (used == idx) {
+                    idx++;
+                    skip = true;
+                    break;
+                }
+            }
+            if (skip) {
+                continue;
+            }
             runes r = from_utf8(w);
             words.push_back({
                 r, idx, status.turn, w
@@ -63,17 +79,20 @@ int main() {
             }
             for(int d = 1; d < r.size(); d++) {
                 for(int i = 0; i + d < r.size(); i++) {
-                    cout << r[i] << ' ' << r[i + d] << endl;
+//                    cout << r[i] << ' ' << r[i + d] << endl;
                     dw[{d, {r[i], r[i + d]}}].push_back(idx);
                 }
             }
             idx++;
         }
-        bool found = false;
-        int fbase, fl, fr, ft;
+        double best = -1;
+        int fbase, fl, fr;
+        vector<pair<int, int>> fts;
         int ffloor = 0, ffl, ffr;
+        int st_clock = clock();
         for(int base_idx = 0; base_idx < words.size(); base_idx++) {
             auto base = words[base_idx];
+            bool found = false;
             for(int l = 0; l < base.r.size(); l++) {
                 for(int r = base.r.size() - 2; r >= l + 2; r--) {
                     vector<int> lpos = wp[{0, base.r[l]}];
@@ -85,60 +104,67 @@ int main() {
                             }
                             auto lw = words[lidx];
                             auto rw = words[ridx];
+                            vector<pair<int, int> > floors;
+                            int h = min(lw.r.size(), rw.r.size());
+                            double score = 1.25 + 1.25 * base.r.size();
                             for(int floor = min(lw.r.size(), rw.r.size()) - 1; floor > 1; floor--) {
                                 vector<int> pos = dw[{r - l, {lw.r[lw.r.size() - 1 - floor], rw.r[rw.r.size() - 1 - floor]}}];
                                 for(int fi = 0; fi < pos.size(); fi++) {
                                     if (pos[fi] == lidx || pos[fi] == ridx || pos[fi] == base_idx) continue;
-                                    cout << r - l << ' ' << lw.r[lw.r.size() - 1 - floor] << ' ' << rw.r[rw.r.size() - 1 - floor] << endl;
-                                    cout << words[pos[fi]].s << endl;
-                                    for (int x = 0; x < words[pos[fi]].r.size(); x++) {
-                                        cout << x << ':' << words[pos[fi]].r[x] << endl;
-                                    }
-                                    found = true;
-                                    fbase = base_idx;
-                                    ffloor = floor;
-                                    fl = lidx;
-                                    fr = ridx;
-                                    ft = pos[fi];
-                                    ffl = l;
-                                    ffr = r;
+                                    floors.push_back({floor, pos[fi]});
+                                    score += (floor + 1) * (1.25) * 3;
+                                    floor--;
                                     break;
                                 }
-                                if (found) break;
                             }
-                            if (found) break;
+                            if (floors.size() > 0) {
+                                found = true;
+                            }
+                            if (score > best && floors.size() > 0) {
+                                fbase = base_idx;
+                                best = score;
+                                fl = lidx;
+                                fr = ridx;
+                                ffl = l;
+                                ffr = r;
+                                fts = floors;
+                            }
                         }
                         if (found) break;
                     }
-                    if (found) break;
                 }
-                if (found) break;
             }
-            if (found) break;
         }
-
+        cout << ' ' << (clock() - st_clock) * 1. / CLOCKS_PER_SEC << endl;
+        if (best == -1) {
+            cout << "NOT FOUND?!" << endl;
+        }
         vector<PositionedWord> pw;
         cout << words[fl].s << ' ' << words[fr].s << endl;
-        cout << words[fbase].s << ' ' << words[ft].s << endl;
+        cout << words[fbase].s << endl;
         cout << ffl << ' ' << ffr << endl;
-        int flpos = -1;
         auto lw = words[fl];
         auto rw = words[fr];
-        int lc = lw.r[lw.r.size() - 1 - ffloor];
-        int rc = rw.r[rw.r.size() - 1 - ffloor];
         int d = ffr - ffl;
-        cout << lc << ' ' << rc << endl;
-        cout << ffloor << endl;
-        auto &top = words[ft];
-        for(int i = 0; i + d < top.r.size(); i++) {
-            if (top.r[i] == lc && top.r[i + d] == rc) {
-                flpos = i;
-                break;
+        int xoffset = 0;
+        vector<int> flpos;
+        for (const auto &[floor, ft]: fts) {
+            auto &top = words[ft];
+            int lc = lw.r[lw.r.size() - 1 - floor];
+            int rc = rw.r[rw.r.size() - 1 - floor];
+            for (int i = 0; i + d < top.r.size(); i++) {
+                if (top.r[i] == lc && top.r[i + d] == rc) {
+                    if (ffr + i >= 30) {
+                        flpos.push_back(-1);
+                        continue;
+                    }
+                    xoffset = max(xoffset, i);
+                    flpos.push_back(i);
+                    break;
+                }
             }
         }
-        // предусмотрительность
-        cout << flpos << endl;
-        int xoffset = max(0, flpos - ffl);
+        cout << fts.size() << ' ' << flpos.size() << endl;
         pw.push_back(PositionedWord{
             .id = words[fbase].idx,
             .dir = 2,
@@ -154,17 +180,26 @@ int main() {
             .dir = 1,
             .pos = {xoffset + ffr, 0, static_cast<int>(words[fr].r.size()) - 1}
         });
-        pw.push_back(PositionedWord{
-            .id = top.idx,
-            .dir = 2,
-            .pos = {xoffset + ffl - flpos, 0, ffloor}
-        });
-        build(BuildRequest{
+        for(int i = 0; i < fts.size(); i++) {
+            if (flpos[i] == -1) {
+                continue;
+            }
+            auto &top = words[fts[i].second];
+            if (xoffset + ffl - flpos[i] + top.r.size() + 1 >= 30 || xoffset + ffl - flpos[i] >= 30) {
+                continue;
+            }
+            pw.push_back(PositionedWord{
+                    .id = top.idx,
+                    .dir = 2,
+                    .pos = {xoffset + ffl - flpos[i], 0, fts[i].first}
+            });
+        }
+        build_wrapper(BuildRequest{
             .done = true,
             .words = pw
         });
         Status st2 = words_wrapper();
-        sleep(st2.nextTurnSec);
+//        sleep(st2.nextTurnSec + 3);
         status = words_wrapper();
     }
 }
