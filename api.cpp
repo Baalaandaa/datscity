@@ -70,7 +70,7 @@ double calc(vector<int> mapSize, vector<PositionedWord> words, vector<int> rlen)
             }
             wrld[z][x][y].push_back(words[i].id);
             cubes.push_back({
-                (float)x, (float)y, (float)z,
+                (float)x, (float)z, (float)y,
                     r, g, b
             });
             if (d == 1) {

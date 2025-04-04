@@ -282,7 +282,7 @@ int main() {
         return 1;
     }
 
-    float defaultCameraX = 0.0f, defaultCameraY = 0.0f, defaultCameraZ = 5.0f;
+    float defaultCameraX = 1.0f, defaultCameraY = 1.0f, defaultCameraZ = -1.0f;
 
     bool running = true;
     while (running) {
