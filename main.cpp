@@ -207,6 +207,15 @@ int main() {
     simInit();
     std::thread solution_thread([&]() {
         auto status = words_wrapper();
+        map<int, int> sz;
+        for(const auto &st : status.words) {
+            auto r = from_utf8(st);
+            sz[r.size()]++;
+        }
+        for(const auto &[k, v]: sz) {
+            cout << k << ' ' << v << endl;
+        }
+        return;
         while (true) {
             vector<word> words;
             map<pair<int, int>, vector<int>> wp;
