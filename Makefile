@@ -1,4 +1,5 @@
 run:
+	[ -d logs ] || mkdir logs
 	cmake . -B build
 	cmake --build build
 	cp build/datscity ./datscity
