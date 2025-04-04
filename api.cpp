@@ -45,8 +45,8 @@ Status words_wrapper(){
 
     {
         std::unique_lock<std::mutex> l(m);
-        if(cv.wait_for(l, 1s) == std::cv_status::timeout) {
-            throw std::runtime_error("Timeout");
+        if(cv.wait_for(l, 5s) == std::cv_status::timeout) {
+            throw std::runtime_error("Timeout words");
         }
     }
 
@@ -114,6 +114,7 @@ ShuffleResponse build(const BuildRequest &t) {
         if (res == nullptr) {
             throw std::exception();
         }
+        cout << res->body << endl;
         ShuffleResponse resp(json::parse(res->body));
         return resp;
     }
@@ -124,7 +125,7 @@ ShuffleResponse build(const BuildRequest &t) {
     }
 }
 
-ShuffleResponse call_wrapper(BuildRequest req)
+ShuffleResponse build_wrapper(BuildRequest req)
 {
     std::mutex m;
     std::condition_variable cv;
