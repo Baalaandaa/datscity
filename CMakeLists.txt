@@ -5,8 +5,8 @@ set(CMAKE_CXX_STANDARD 23)
 set(OPENSSL_USE_STATIC_LIBS TRUE)
 find_package(OpenSSL REQUIRED)
 
-add_executable(datscity main.cpp viewer/ActiveSocket.cpp viewer/HTTPActiveSocket.cpp viewer/PassiveSocket.cpp viewer/SimpleSocket.cpp)
-
+add_executable(datscity main.cpp)
+add_definitions("-g")
 
 include_directories(${OPENSSL_INCLUDE_DIR})
 target_link_libraries(datscity ${OPENSSL_LIBRARIES})

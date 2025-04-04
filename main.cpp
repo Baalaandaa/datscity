@@ -1,10 +1,17 @@
 #include <iostream>
-
-#define CPPHTTPLIB_OPENSSL_SUPPORT
+#include "api.cpp"
 
 using namespace std;
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
-    return 0;
+    auto status = words_wrapper();
+    while (true) {
+        for (const auto &w: status.words) {
+            cout << w << endl;
+        }
+        cout << status.nextTurnSec << endl;
+
+        sleep(status.nextTurnSec);
+        status = words_wrapper();
+    }
 }
