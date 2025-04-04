@@ -28,10 +28,42 @@ struct BuildRequest {
     vector<PositionedWord> words;
 };
 
+struct DoneTower {
+    int id;
+    double score;
+};
+
+struct Tower {
+    double score;
+    vector<string> words;
+};
+
+struct BuildResponse {
+    double score;
+    vector<DoneTower> doneTowers;
+    Tower tower;
+};
+
 struct ShuffleResponse {
     int shuffleLeft;
     vector<string> words;
 };
+
+void from_json(const json &j, DoneTower &t) {
+    j.at("id").get_to(t.id);
+    j.at("score").get_to(t.score);
+}
+
+void from_json(const json &j, Tower &t) {
+    j.at("score").get_to(t.score);
+    j.at("words").get_to(t.words);
+}
+
+void from_json(const json &j, BuildResponse &b) {
+    j.at("score").get_to(b.score);
+    j.at("doneTowers").get_to(b.doneTowers);
+    j.at("tower").get_to(b.tower);
+}
 
 void from_json(const json &j, Status &s) {
     j.at("mapSize").get_to(s.mapSize);

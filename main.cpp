@@ -18,11 +18,22 @@ bool cmp(word l, word r) {
 }
 
 struct dw {
-    int d, l, r;
+    int d;
+    int l;
+    int r;
 };
 
 bool operator<(const dw &a, const dw &b) {
+    if (a.d == b.d) {
+        if (a.l == b.l) {
+            return a.r < b.r;
+        }
+        return a.l < b.l;
+    }
     return a.d < b.d;
+}
+bool operator==(const dw &a, const dw &b) {
+    return a.d == b.d && a.l == b.l && a.r == b.r;
 }
 
 int main() {
@@ -31,7 +42,7 @@ int main() {
         vector<vector<vector<idxs>>> wrld(status.mapSize[0], vector<vector<idxs>>(status.mapSize[1], vector<idxs> (status.mapSize[2])));
         vector<word> words;
         map<pair<int, int>, vector<int>> wp;
-        map<dw, vector<int>> dw;
+        map<pair<int, pair<int, int>>, vector<int>> dw;
         int idx = 0;
         int turn = status.turn;
         for (const auto &w: status.words) {
@@ -52,7 +63,8 @@ int main() {
             }
             for(int d = 1; d < r.size(); d++) {
                 for(int i = 0; i + d < r.size(); i++) {
-                    dw[{d, r[i], r[i + d]}].push_back(idx);
+                    cout << r[i] << ' ' << r[i + d] << endl;
+                    dw[{d, {r[i], r[i + d]}}].push_back(idx);
                 }
             }
             idx++;
@@ -73,10 +85,15 @@ int main() {
                             }
                             auto lw = words[lidx];
                             auto rw = words[ridx];
-                            for(int floor = min(lw.r.size(), rw.r.size()) - 1; floor > 0; floor--) {
-                                vector<int> pos = dw[{r - l + 1, lw.r[lw.r.size() - 1 - floor], rw.r[rw.r.size() - 1 - floor]}];
+                            for(int floor = min(lw.r.size(), rw.r.size()) - 1; floor > 1; floor--) {
+                                vector<int> pos = dw[{r - l, {lw.r[lw.r.size() - 1 - floor], rw.r[rw.r.size() - 1 - floor]}}];
                                 for(int fi = 0; fi < pos.size(); fi++) {
                                     if (pos[fi] == lidx || pos[fi] == ridx || pos[fi] == base_idx) continue;
+                                    cout << r - l << ' ' << lw.r[lw.r.size() - 1 - floor] << ' ' << rw.r[rw.r.size() - 1 - floor] << endl;
+                                    cout << words[pos[fi]].s << endl;
+                                    for (int x = 0; x < words[pos[fi]].r.size(); x++) {
+                                        cout << x << ':' << words[pos[fi]].r[x] << endl;
+                                    }
                                     found = true;
                                     fbase = base_idx;
                                     ffloor = floor;
@@ -105,9 +122,13 @@ int main() {
         cout << words[fbase].s << ' ' << words[ft].s << endl;
         cout << ffl << ' ' << ffr << endl;
         int flpos = -1;
-        int lc = words[fl].r[ffloor];
-        int rc = words[fr].r[ffloor];
-        int d = ffr - ffl + 1;
+        auto lw = words[fl];
+        auto rw = words[fr];
+        int lc = lw.r[lw.r.size() - 1 - ffloor];
+        int rc = rw.r[rw.r.size() - 1 - ffloor];
+        int d = ffr - ffl;
+        cout << lc << ' ' << rc << endl;
+        cout << ffloor << endl;
         auto &top = words[ft];
         for(int i = 0; i + d < top.r.size(); i++) {
             if (top.r[i] == lc && top.r[i + d] == rc) {
@@ -115,6 +136,7 @@ int main() {
                 break;
             }
         }
+        // предусмотрительность
         cout << flpos << endl;
         int xoffset = max(0, flpos - ffl);
         pw.push_back(PositionedWord{
@@ -125,12 +147,12 @@ int main() {
         pw.push_back(PositionedWord{
             .id = words[fl].idx,
             .dir = 1,
-            .pos = {xoffset + ffl, 0, static_cast<int>(words[fl].r.size())}
+            .pos = {xoffset + ffl, 0, static_cast<int>(words[fl].r.size()) - 1}
         });
         pw.push_back(PositionedWord{
             .id = words[fr].idx,
             .dir = 1,
-            .pos = {xoffset + ffr, 0, static_cast<int>(words[fr].r.size())}
+            .pos = {xoffset + ffr, 0, static_cast<int>(words[fr].r.size()) - 1}
         });
         pw.push_back(PositionedWord{
             .id = top.idx,

@@ -102,7 +102,7 @@ ShuffleResponse shuffle_wrapper(){
 }
 
 
-ShuffleResponse build(const BuildRequest &t) {
+BuildResponse build(const BuildRequest &t) {
     try
     {
         json jdata(t);
@@ -115,7 +115,7 @@ ShuffleResponse build(const BuildRequest &t) {
             throw std::exception();
         }
         cout << res->body << endl;
-        ShuffleResponse resp(json::parse(res->body));
+        BuildResponse resp(json::parse(res->body));
         return resp;
     }
     catch (const std::exception& e)
@@ -125,11 +125,11 @@ ShuffleResponse build(const BuildRequest &t) {
     }
 }
 
-ShuffleResponse build_wrapper(BuildRequest req)
+BuildResponse build_wrapper(BuildRequest req)
 {
     std::mutex m;
     std::condition_variable cv;
-    ShuffleResponse retValue;
+    BuildResponse retValue;
 
     std::thread t([&cv, &retValue, &req]()
                   {
