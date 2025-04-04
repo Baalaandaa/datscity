@@ -115,6 +115,7 @@ int main() {
                 break;
             }
         }
+        cout << flpos << endl;
         int xoffset = max(0, flpos - ffl);
         pw.push_back(PositionedWord{
             .id = words[fbase].idx,
