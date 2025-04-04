@@ -1,0 +1,3 @@
+/Users/baalaandaa/datscity/build/CMakeFiles/datscity.dir
+/Users/baalaandaa/datscity/build/CMakeFiles/edit_cache.dir
+/Users/baalaandaa/datscity/build/CMakeFiles/rebuild_cache.dir
