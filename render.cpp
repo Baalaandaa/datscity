@@ -18,10 +18,6 @@ struct appWindow {
     Color backgroundColor;
 };
 
-struct Cube {
-    float x, y, z;
-    float r, g, b;
-};
 
 
 constexpr appWindow AppWindow{"cubee envelope igger", 800, 600, Color{0.75f, 0.75f, 0.75f}};

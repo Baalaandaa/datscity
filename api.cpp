@@ -35,6 +35,20 @@ void simInit() {
 }
 
 
+mutex mu;
+
+struct Cube {
+    float x, y, z;
+    float r, g, b;
+};
+
+vector<Cube> cubes;
+
+
+float randomColor() {
+    return (rand() % 80 + 100) / 255.0f; // Random value between 0.39 and 1.0 (avoids too dark colors)
+}
+
 using idxs = vector<int>;
 double calc(vector<int> mapSize, vector<PositionedWord> words, vector<int> rlen) {
     vector<vector<vector<idxs>>> wrld(mapSize[2], vector<vector<idxs>>(mapSize[0], vector<idxs> (mapSize[1])));
@@ -45,11 +59,16 @@ double calc(vector<int> mapSize, vector<PositionedWord> words, vector<int> rlen)
             dens[words[i].pos[2]] += 1;
         }
         int x = words[i].pos[0], y = words[i].pos[1], z = words[i].pos[2], d = words[i].dir;
+
         for(int p = 0; p < rlen[i]; p++) {
             if (x < 0 || y < 0 || x >= mapSize[0] || y >= mapSize[1]) {
                 cout << "SIZE MISMATCH " << x << ' ' << y << ' ' << z << ' ' << words[i].id << ' ' << words[i].pos[0] << endl;
             }
             wrld[z][x][y].push_back(words[i].id);
+            cubes.push_back({
+                (float)x, (float)y, (float)z,
+                randomColor(), randomColor(), randomColor()
+            });
             p++;
             if (d == 1) {
                 z++;
