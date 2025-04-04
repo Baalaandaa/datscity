@@ -12,15 +12,43 @@ struct Color {
     GLfloat r, g, b;
 };
 
+struct MouseControl {
+    bool active;
+    float yaw;
+    float pitch;
+    float sensitivity;
+};
+
 struct appWindow {
-    const char* name;
+    const char *name;
     int w, h;
     Color backgroundColor;
+    float cameraX, cameraY, cameraZ;
+    float cameraSpeed;
+    MouseControl mouseControl;
 };
 
 
-
-constexpr appWindow AppWindow{"cubee envelope igger", 800, 600, Color{0.75f, 0.75f, 0.75f}};
+constexpr appWindow AppWindow{
+    "cubee envelope igger",
+    800,
+    600,
+    Color{
+        0.75f,
+        0.75f,
+        0.75f
+    },
+    0.0,
+    0.0,
+    5.0,
+    2.0,
+    MouseControl{
+        true,
+        -90.0f,
+        0.0f,
+        0.1f
+    }
+};
 
 float randColor() {
     return (rand() % 80 + 100) / 255.0f; // Random value between 0.39 and 1.0 (avoids too dark colors)
@@ -36,19 +64,19 @@ Color generateRandomColor() {
 }
 
 // cube size
-GLfloat* generateCubeVertices(GLfloat sideLength) {
+GLfloat *generateCubeVertices(GLfloat sideLength) {
     GLfloat halfSide = sideLength / 2.0f;
 
     static GLfloat vertices[] = {
         // Front face
-        -halfSide, -halfSide,  halfSide,  halfSide,
-        -halfSide,  halfSide,  halfSide,   halfSide,
-        halfSide,  -halfSide,  halfSide,   halfSide,
+        -halfSide, -halfSide, halfSide, halfSide,
+        -halfSide, halfSide, halfSide, halfSide,
+        halfSide, -halfSide, halfSide, halfSide,
 
         // Back face
-        -halfSide, -halfSide, -halfSide,  halfSide,
-        -halfSide,  -halfSide,  halfSide,  halfSide,
-        -halfSide, -halfSide, halfSide,  -halfSide,
+        -halfSide, -halfSide, -halfSide, halfSide,
+        -halfSide, -halfSide, halfSide, halfSide,
+        -halfSide, -halfSide, halfSide, -halfSide,
     };
 
     return vertices;
@@ -56,18 +84,18 @@ GLfloat* generateCubeVertices(GLfloat sideLength) {
 
 // Define indices for drawing the cube
 const GLushort cubeIndices[] = {
-    0, 1, 2, 2, 3, 0,  // Front
-    4, 5, 6, 6, 7, 4,  // Back
-    0, 3, 7, 7, 4, 0,  // Left
-    1, 2, 6, 6, 5, 1,  // Right
-    3, 2, 6, 6, 7, 3,  // Top
-    0, 1, 5, 5, 4, 0   // Bottom
+    0, 1, 2, 2, 3, 0, // Front
+    4, 5, 6, 6, 7, 4, // Back
+    0, 3, 7, 7, 4, 0, // Left
+    1, 2, 6, 6, 5, 1, // Right
+    3, 2, 6, 6, 7, 3, // Top
+    0, 1, 5, 5, 4, 0 // Bottom
 };
 
 const GLushort cubeEdgeIndices[] = {
-    0, 1, 1, 2, 2, 3, 3, 0,  // Front
-    4, 5, 5, 6, 6, 7, 7, 4,  // Back
-    0, 4, 1, 5, 2, 6, 3, 7   // Connecting front and back
+    0, 1, 1, 2, 2, 3, 3, 0, // Front
+    4, 5, 5, 6, 6, 7, 7, 4, // Back
+    0, 4, 1, 5, 2, 6, 3, 7 // Connecting front and back
 };
 
 void drawCubeEdges() {
@@ -102,12 +130,13 @@ void drawCubeWithOutline(float posX, float posY, float posZ, float colorR, float
     glPopMatrix();
 }
 
-tuple<SDL_GLContext, SDL_Window*> setWindowUp() {
+tuple<SDL_GLContext, SDL_Window *> setWindowUp() {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         return make_tuple(nullptr, nullptr);
     }
 
-    SDL_Window* window = SDL_CreateWindow(AppWindow.name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, AppWindow.w, AppWindow.h, SDL_WINDOW_OPENGL);
+    SDL_Window *window = SDL_CreateWindow(AppWindow.name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, AppWindow.w,
+                                          AppWindow.h, SDL_WINDOW_OPENGL);
     if (!window) {
         SDL_Quit();
         return make_tuple(nullptr, nullptr);
@@ -118,6 +147,10 @@ tuple<SDL_GLContext, SDL_Window*> setWindowUp() {
         SDL_DestroyWindow(window);
         SDL_Quit();
         return make_tuple(nullptr, nullptr);
+    }
+
+    if (AppWindow.mouseControl.active) {
+        SDL_SetRelativeMouseMode(SDL_TRUE);
     }
 
     // OpenGL setup
@@ -133,6 +166,7 @@ tuple<SDL_GLContext, SDL_Window*> setWindowUp() {
     return make_tuple(context, window);
 }
 
+// NOTE: deprecated
 void manageCamera(float defaultCameraX, float defaultCameraY, float defaultCameraZ) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -142,26 +176,30 @@ void manageCamera(float defaultCameraX, float defaultCameraY, float defaultCamer
         // Keyboard input for camera movement
         else if (event.type == SDL_KEYDOWN) {
             switch (event.key.keysym.sym) {
-                case SDLK_w: defaultCameraZ -= 0.2f; break; // Move forward
-                case SDLK_s: defaultCameraZ += 0.2f; break; // Move backward
-                case SDLK_a: defaultCameraX -= 0.2f; break; // Move left
-                case SDLK_d: defaultCameraX += 0.2f; break; // Move right
-                case SDLK_UP:    defaultCameraY += 0.2f; break; // Move up
-                case SDLK_DOWN:  defaultCameraY -= 0.2f; break; // Move down
+                case SDLK_w: defaultCameraZ -= 0.2f;
+                    break; // Move forward
+                case SDLK_s: defaultCameraZ += 0.2f;
+                    break; // Move backward
+                case SDLK_a: defaultCameraX -= 0.2f;
+                    break; // Move left
+                case SDLK_d: defaultCameraX += 0.2f;
+                    break; // Move right
+                case SDLK_UP: defaultCameraY += 0.2f;
+                    break; // Move up
+                case SDLK_DOWN: defaultCameraY -= 0.2f;
+                    break; // Move down
             }
         }
     }
 
     glLoadIdentity();
-    gluLookAt(defaultCameraX, defaultCameraY, defaultCameraZ,  0.0f,  0.0f,  0.0f, 0.0, 1.0, 0.0);
+    gluLookAt(defaultCameraX, defaultCameraY, defaultCameraZ, 0.0f, 0.0f, 0.0f, 0.0, 1.0, 0.0);
 }
 
 
 // cleanup on window close
-void cleanupOnClose(SDL_GLContext context, SDL_Window* window) {
+void cleanupOnClose(SDL_GLContext context, SDL_Window *window) {
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
-
-// TODO: glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); ----> draw again ----> SDL_GL_SwapWindow(window);
