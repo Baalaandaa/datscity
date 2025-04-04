@@ -2,6 +2,10 @@
 #include "api.cpp"
 #include "render.cpp"
 
+#include <SDL.h>
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+
 using namespace std;
 using runes = vector<int>;
 
@@ -221,8 +225,53 @@ int main() {
         }
     });
 
-    // Render code
+
+    SDL_GLContext glContext;
+    SDL_Window * window;
+
+    tie(glContext, window) = setWindowUp();
+
+    if (!window || !glContext) {
+        return 1;
+    }
+
+    float defaultCameraX = 0.0f, defaultCameraY = 0.0f, defaultCameraZ = 5.0f;
+
+    bool running = true;
+    while (running) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = false;
+            }
+            // Keyboard input for camera movement
+            else if (event.type == SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_w: defaultCameraZ -= 0.2f; break; // Move forward
+                    case SDLK_s: defaultCameraZ += 0.2f; break; // Move backward
+                    case SDLK_a: defaultCameraX -= 0.2f; break; // Move left
+                    case SDLK_d: defaultCameraX += 0.2f; break; // Move right
+                    case SDLK_UP:    defaultCameraY += 0.2f; break; // Move up
+                    case SDLK_DOWN:  defaultCameraY -= 0.2f; break; // Move down
+                }
+            }
+        }
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        mu.lock();
+        for(const auto& cube: cubes) {
+            drawCubeWithOutline(cube.x, cube.y, cube.z, cube.r, cube.g, cube.b);
+        }
+        mu.unlock();
+
+        glLoadIdentity();
+        gluLookAt(defaultCameraX, defaultCameraY, defaultCameraZ,  0.0f,  0.0f,  0.0f, 0.0, 1.0, 0.0);
+
+        SDL_GL_SwapWindow(window);
+    }
+
+    cleanupOnClose(glContext, window);
 
     solution_thread.join();
-
 }

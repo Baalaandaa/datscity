@@ -3,6 +3,7 @@
 #include <OpenGL/gl.h>
 #include <OpenGL/glu.h>
 #include <cstdlib>
+#include <tuple>
 
 using namespace std;
 
@@ -105,22 +106,22 @@ void drawCubeWithOutline(float posX, float posY, float posZ, float colorR, float
     glPopMatrix();
 }
 
-int setWindowUp() {
+tuple<SDL_GLContext, SDL_Window*> setWindowUp() {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        return 1;
+        return make_tuple(nullptr, nullptr);
     }
 
     SDL_Window* window = SDL_CreateWindow(AppWindow.name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, AppWindow.w, AppWindow.h, SDL_WINDOW_OPENGL);
     if (!window) {
         SDL_Quit();
-        return 1;
+        return make_tuple(nullptr, nullptr);
     }
 
     SDL_GLContext context = SDL_GL_CreateContext(window);
     if (!context) {
         SDL_DestroyWindow(window);
         SDL_Quit();
-        return 1;
+        return make_tuple(nullptr, nullptr);
     }
 
     // OpenGL setup
@@ -133,7 +134,7 @@ int setWindowUp() {
     gluPerspective(45.0, 800.0 / 600.0, 0.1, 100.0);
     glMatrixMode(GL_MODELVIEW);
 
-    return 0;
+    return make_tuple(context, window);
 }
 
 void manageCamera(float defaultCameraX, float defaultCameraY, float defaultCameraZ) {
