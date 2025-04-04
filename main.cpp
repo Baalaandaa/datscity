@@ -1,5 +1,6 @@
 #include <iostream>
 #include "api.cpp"
+#include "render.cpp"
 
 using namespace std;
 using runes = vector<int>;
@@ -34,11 +35,17 @@ bool operator==(const dw &a, const dw &b) {
     return a.d == b.d && a.l == b.l && a.r == b.r;
 }
 
+vector<word> words;
+map<pair<int, int>, vector<int>> wp;
+map<pair<int, pair<int, int>>, vector<int>> dw;
 
 int main() {
     simInit();
     auto status = words_wrapper();
     while (true) {
+        words.clear();
+        wp.clear();
+        dw.clear();
         if (status.usedWords.size() >= 800 ) {
             break;
         }
@@ -46,9 +53,6 @@ int main() {
 //            cout << status.words[i] << endl;
 //        }
 //        return 0;
-        vector<word> words;
-        map<pair<int, int>, vector<int>> wp;
-        map<pair<int, pair<int, int>>, vector<int>> dw;
         int idx = 0;
         for (const auto &w: status.words) {
             bool skip = false;
@@ -112,7 +116,7 @@ int main() {
                                 for(int fi = 0; fi < pos.size(); fi++) {
                                     if (pos[fi] == lidx || pos[fi] == ridx || pos[fi] == base_idx) continue;
                                     floors.push_back({floor, pos[fi]});
-                                    score += (floor + 1) * (1.25) * 3;
+                                    score += (floor + 1) * (r - l + 1);
                                     floor--;
                                     break;
                                 }
@@ -128,9 +132,12 @@ int main() {
                                 ffl = l;
                                 ffr = r;
                                 fts = floors;
+                                break;
                             }
                         }
-                        if (found) break;
+                        if (found) {
+                            break;
+                        }
                     }
                 }
             }

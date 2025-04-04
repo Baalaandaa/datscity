@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(OPENSSL_USE_STATIC_LIBS TRUE)
 find_package(OpenSSL REQUIRED)
 
-add_executable(datscity main.cpp render.cpp)
+add_executable(datscity main.cpp)
 add_definitions("-g")
 
 find_package(OpenGL REQUIRED)

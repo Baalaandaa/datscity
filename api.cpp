@@ -106,7 +106,7 @@ BuildResponse simBuild(BuildRequest &req) {
     };
 }
 
-Status words() {
+Status api_words() {
     try
     {
         auto headers = httplib::Headers{
