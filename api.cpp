@@ -54,12 +54,16 @@ double calc(vector<int> mapSize, vector<PositionedWord> words, vector<int> rlen)
     vector<vector<vector<idxs>>> wrld(mapSize[2], vector<vector<idxs>>(mapSize[0], vector<idxs> (mapSize[1])));
     map<int, int> dens;
     double score = 0;
+    mu.lock();
+    cubes.clear();
+    float r, g, b;
     for (int i = 0; i < words.size(); i++) {
         if (words[i].dir == 2 || words[i].dir == 3) {
             dens[words[i].pos[2]] += 1;
         }
+        r = randomColor(), g = randomColor(), b = randomColor();
         int x = words[i].pos[0], y = words[i].pos[1], z = words[i].pos[2], d = words[i].dir;
-
+        cout << x << ' ' << y << ' ' << z << ' ' << d << ' ' << rlen[i] << endl;
         for(int p = 0; p < rlen[i]; p++) {
             if (x < 0 || y < 0 || x >= mapSize[0] || y >= mapSize[1]) {
                 cout << "SIZE MISMATCH " << x << ' ' << y << ' ' << z << ' ' << words[i].id << ' ' << words[i].pos[0] << endl;
@@ -67,11 +71,10 @@ double calc(vector<int> mapSize, vector<PositionedWord> words, vector<int> rlen)
             wrld[z][x][y].push_back(words[i].id);
             cubes.push_back({
                 (float)x, (float)y, (float)z,
-                randomColor(), randomColor(), randomColor()
+                    r, g, b
             });
-            p++;
             if (d == 1) {
-                z++;
+                z--;
             } else if (d == 2) {
                 x++;
             } else {
@@ -79,6 +82,7 @@ double calc(vector<int> mapSize, vector<PositionedWord> words, vector<int> rlen)
             }
         }
     }
+    mu.unlock();
     for(int z = 0; z < wrld.size(); z++) {
         int min_x = 1e9, min_y = 1e9, max_x=0, max_y=0, cnt = 0;
         for(int x = 0; x < wrld[z].size(); x++) {

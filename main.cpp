@@ -40,7 +40,7 @@ bool operator==(const dw &a, const dw &b) {
     return a.d == b.d && a.l == b.l && a.r == b.r;
 }
 
-vector<PositionedWord> findLadder(vector<string> w, vector<int> used, int base_char = 0, int base_pos = 0, int xMin = 0, int xMax = 0, vector<int> mapSize) {
+vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int> mapSize, int base_char = 0, int base_pos = 0, int xMin = 0, int xMax = 0) {
     vector<word> words;
     map<pair<int, int>, vector<int>> wp;
     map<pair<int, pair<int, int>>, vector<int>> dw;
