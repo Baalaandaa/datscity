@@ -31,8 +31,8 @@ struct appWindow {
 
 constexpr appWindow AppWindow{
     "cubee envelope igger",
-    800,
-    600,
+    1280,
+    720,
     Color{
         0.75f,
         0.75f,
@@ -41,7 +41,7 @@ constexpr appWindow AppWindow{
     0.0,
     0.0,
     5.0,
-    2.0,
+    6.0,
     MouseControl{
         true,
         -90.0f,

@@ -1,6 +1,7 @@
 #include "http.hpp"
 #include "model.cpp"
 #include "utils.cpp"
+#include <string>
 using namespace std;
 #define SIM 1
 
@@ -288,4 +289,15 @@ BuildResponse build_wrapper(BuildRequest req)
     }
 
     return retValue;
+}
+
+
+void download(Status stat) {
+    ofstream outdata;
+    int num = rand() % 100;
+    outdata.open("words"+to_string(num)+".txt");
+    for (auto &w: stat.words) {
+        outdata << w << endl;
+    }
+    outdata.close();
 }
