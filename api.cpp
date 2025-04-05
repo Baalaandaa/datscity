@@ -27,10 +27,14 @@ Status simWords() {
 void simInit() {
     ifstream fin("words.txt");
     string s;
+    vector<string> dict;
     while(getline(fin, s)) {
         if (!s.empty()) {
-            sim_words.push_back(s);
+            dict.push_back(s);
         }
+    }
+    for(int i = 0; i < 1000; i++) {
+        sim_words.push_back(dict[2 * i + rand() % 2]);
     }
 }
 
@@ -99,6 +103,7 @@ double calc(vector<int> mapSize, vector<PositionedWord> words, vector<int> rlen)
         if (cnt == 0) continue;
         int dx = max_x - min_x + 1;
         int dy = max_y - min_y + 1;
+        cout << "z: " << z << " | cnt: " << cnt << " | / factor: " << (min(dx, dy) / (double)max(dx, dy)) << " | density: " << (1 + (double)dens[z] / 4) << " | TOTAL= " << cnt * (z + 1) * (min(dx, dy) / (double)max(dx, dy)) * (1 + (double)dens[z] / 4) << endl;
         score += cnt * (z + 1) * (min(dx, dy) / (double)max(dx, dy)) * (1 + (double)dens[z] / 4);
     }
     return score;

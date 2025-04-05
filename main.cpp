@@ -9,6 +9,8 @@
 using namespace std;
 using runes = vector<int>;
 
+const int zEnrichLimit = 6;
+
 struct word {
     runes r;
     int idx;
@@ -203,21 +205,110 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
     return res;
 }
 
+
+vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> mapSize, vector<PositionedWord> &already, int y) {
+    vector<word> words;
+    int idx = -1;
+    for(const runes &r: w) {
+        idx++;
+        if (r.size() > zEnrichLimit) {
+            continue;
+        }
+        bool skip = false;
+        for(const int u: used) {
+            if (idx == u) {
+                skip = true;
+                break;
+            }
+        }
+        if (skip) continue;
+        words.push_back({
+                r, idx, 0, ""
+        });
+    }
+    vector<vector<int> > xz(mapSize[0], vector<int> (mapSize[1], -1));
+    vector<vector<bool> > horizontal(mapSize[0], vector<bool> (mapSize[1], false));
+    vector<vector<bool> > vertical(mapSize[0], vector<bool> (mapSize[1], false));
+    for(int i = 0; i < already.size(); i++) {
+        const auto &wrd = already[i];
+        int len = w[wrd.id].size();
+        if(wrd.pos[1] != y) {
+            continue;
+        }
+        if (wrd.dir == 1) {
+            int x = wrd.pos[0];
+            for(int z = wrd.pos[2]; z > wrd.pos[2] - len; z--) {
+                xz[x][z] = w[wrd.id][wrd.pos[2] - z];
+                vertical[x][z] = true;
+            }
+        } else if (wrd.dir == 2) {
+            int z = wrd.pos[2];
+            for(int x = wrd.pos[0]; x < wrd.pos[0] + len; x++) {
+                xz[x][z] = w[wrd.id][x - wrd.pos[0]];
+                horizontal[x][z] = true;
+            }
+        }
+    }
+    vector<PositionedWord> res;
+    for(int pz = mapSize[2]; pz > 0; pz--) {
+        for(int lx = 0; lx < mapSize[0]; lx++) {
+            int x = mapSize[0] / 2 + (lx % 2 == 0 ? -(lx / 2) : (lx / 2));
+            cout << "PROCESSING" << x << ' ' << pz << endl;
+            for(int wid = 0; wid < words.size(); wid++) {
+                const auto &word = words[wid];
+                int z = pz;
+                bool ok = true;
+                int cnt = 0;
+                if (z < mapSize[2] && vertical[x][z + 1]) {
+                    ok = false;
+                    break;
+                }
+                for(int i = 0; i < word.r.size(); i++, z--) {
+                    if (z < 0){
+                        ok = false;
+                        break;
+                    }
+                    cnt += horizontal[x][z];
+                    if (xz[x][z] != -1 && word.r[i] != xz[x][z]) {
+                        ok = false;
+                        break;
+                    }
+                    if (vertical[x][z] || (x + 1 < mapSize[0] && vertical[x + 1][z]) || (x >= 1 && vertical[x - 1][z])) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (ok && cnt >= 2) {
+                    res.push_back(PositionedWord{
+                        .id = word.idx,
+                        .dir = 1,
+                        .pos = {x, y, pz}
+                    });
+                    z = pz;
+                    for(int i = 0; i < word.r.size(); i++, z--) {
+                        xz[x][z] = word.r[i];
+                        vertical[x][z] = true;
+                    }
+                }
+            }
+        }
+    }
+    return res;
+}
+
+uint64_t timeSinceEpochMillisec() {
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
+
 int main() {
     simInit();
     std::thread solution_thread([&]() {
         auto status = words_wrapper();
-        map<int, int> sz;
-        for(const auto &st : status.words) {
-            auto r = from_utf8(st);
-            sz[r.size()]++;
-        }
-        for(const auto &[k, v]: sz) {
-            cout << k << ' ' << v << endl;
-        }
-        return;
         while (true) {
+            auto cl = timeSinceEpochMillisec();
             vector<word> words;
+            vector<runes> rs;
             map<pair<int, int>, vector<int>> wp;
             map<int, int> word_idx;
             if (status.usedWords.size() >= 800) {
@@ -237,6 +328,7 @@ int main() {
                     continue;
                 }
                 runes r = from_utf8(w);
+                rs.push_back(r);
                 words.push_back({
                                         r, idx, status.turn, w
                                 });
@@ -300,6 +392,14 @@ int main() {
                 i.pos[0] -= x_offs;
                 i.pos[1] -= y_offs;
             }
+            for(int y = 0; y < status.mapSize[1]; y++) {
+                auto ew = enrichZ(rs, curr_used, status.mapSize, pw, y);
+                for (const auto &w: ew) {
+                    pw.push_back(w);
+                    curr_used.push_back(w.id);
+                }
+            }
+            cout << timeSinceEpochMillisec() - cl << "ms elapsed";
             build_wrapper(BuildRequest{
                     .done = true,
                     .words = pw
