@@ -10,8 +10,8 @@ using namespace std;
 using runes = vector<int>;
 
 const int zEnrichLimit = 6;
-const int yEnrichLimit = 9;
-const int enrichCnt = 3;
+const int yEnrichLimit = 0;
+const int enrichCnt = 1;
 
 struct word {
     runes r;
@@ -85,10 +85,11 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
     int f_base_idx = 0, f_base_x;
     int flx, frx;
     int flidx, fridx;
+    int fbidx;
     vector<pair<int, pair<int, int>>> ftops;
     vector<thread> threads;
     mutex sol;
-    for (int base_idx = 0; base_idx < min(100, (int)words.size()); base_idx++) {
+    for (int base_idx = 0; base_idx < min(25, (int)words.size()); base_idx++) {
         threads.emplace_back([&, base_idx]() {
             int base_x = 0;
             if (base_char != -1) {
@@ -102,10 +103,10 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                     return;
                 }
             }
-            int xMinB = xMin+base_pos-base_x;
+            int xMinB = base_pos-base_x;
             int xmx = max(xMax, xMinB + (int)words[base_idx].r.size());
             int xmn = min(xMin, xMinB);
-            if (xmx-xmn >= mapSize[0]) {
+            if (xmx-xmn+1 >= mapSize[0]) {
                 return;
             }
             const auto &base = words[base_idx];
@@ -117,6 +118,7 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                     vector<int> rpos = wp[{0, base.r[rx]}];
                     for(const int lidx: lpos) {
                         for(const int ridx: rpos) {
+                            if (lidx == base_idx || ridx == base_idx || lidx == ridx) continue;
                             vector<pair<int, pair<int, int>>> tops;
                             double score = 1.25;
                             const auto &l = words[lidx];
@@ -128,11 +130,27 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                                 vector<pair<int, int> > possible_tops = dw[{d, {l.r[l.r.size() - 1 - floor], r.r[r.r.size() - 1 - floor]}}];
                                 int min_delta = mapSize[0], mti = -1;
                                 for(int ti = 0; ti < possible_tops.size(); ti++) {
+                                    int ix = possible_tops[ti].first;
+                                    if (ix == lidx || ix == ridx || ix == base_idx) {
+                                        continue;
+                                    }
+                                    bool coll = false;
+                                    for(int i = 0; i < tops.size(); i++) {
+                                        if (tops[i].second.first == ix) {
+                                            coll = true;
+                                        }
+                                    }
+                                    if (coll) {
+                                        continue;
+                                    }
                                     const auto &top = words[possible_tops[ti].first];
                                     int idx = possible_tops[ti].second;
                                     int len = (int)top.r.size();
                                     int xl = min(xmn, base_pos - base_x + lx - idx);
                                     int xr = max(xmx, base_pos - base_x + lx - idx + len);
+                                    if (xr - xl + 1 >= mapSize[0]) {
+                                        continue;
+                                    }
                                     if (xr - xl < min_delta) {
                                         min_delta = xr - xl;
                                         mti = ti;
@@ -152,6 +170,7 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                                 best_score = score;
                                 found = true;
                                 ftops = tops;
+                                fbidx = base_idx;
                                 f_base_idx = base_pos;
                                 f_base_x = base_x;
                                 flx = lx;
@@ -180,19 +199,19 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
     }
     vector<PositionedWord> res;
     res.push_back(PositionedWord{
-            .id = words[f_base_idx].idx,
+            .id = words[fbidx].idx,
             .dir = 2,
-            .pos = {base_pos-f_base_x, 0, 0},
+            .pos = {f_base_idx-f_base_x, 0, 0},
     });
     res.push_back(PositionedWord{
             .id = words[flidx].idx,
             .dir = 1,
-            .pos = {base_pos - f_base_idx + flx, 0, static_cast<int>(words[flidx].r.size()) - 1}
+            .pos = {f_base_idx - f_base_x + flx, 0, static_cast<int>(words[flidx].r.size()) - 1}
     });
     res.push_back(PositionedWord{
             .id = words[fridx].idx,
             .dir = 1,
-            .pos = {base_pos - f_base_idx + frx, 0, static_cast<int>(words[fridx].r.size()) - 1}
+            .pos = {f_base_idx - f_base_x + frx, 0, static_cast<int>(words[fridx].r.size()) - 1}
     });
     for (auto & ftop : ftops) {
         auto &top = words[ftop.second.first];
@@ -201,7 +220,7 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
         res.push_back(PositionedWord{
                 .id = top.idx,
                 .dir = 2,
-                .pos = {base_pos - f_base_idx + flx - offs, 0, floor}
+                .pos = {f_base_idx - f_base_x + flx - offs, 0, floor}
         });
     }
     return res;
@@ -264,13 +283,16 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
     for(int pz = mapSize[2]; pz > 0; pz--) {
         for(int lx = 0; lx < mapSize[0]; lx++) {
             int x = mapSize[0] / 2 + (lx % 2 == 0 ? -(lx / 2) : (lx / 2));
-            cout << "PROCESSING" << x << ' ' << pz << endl;
+//            cout << "PROCESSING" << x << ' ' << pz << endl;
             for(int wid = 0; wid < words.size(); wid++) {
                 const auto &word = words[wid];
+                if (word.turn == -1) {
+                    continue;
+                }
                 int z = pz;
                 bool ok = true;
                 int cnt = 0;
-                if (z + 1 < mapSize[2] && vertical[x][z + 1]) {
+                if (z + 1 < mapSize[2] && (vertical[x][z + 1] || horizontal[x][z + 1])) {
                     ok = false;
                     continue;
                 }
@@ -284,16 +306,17 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                         ok = false;
                         break;
                     }
-                    if (vertical[x][z] || (x + 1 < mapSize[0] && vertical[x + 1][z]) || (x >= 1 && vertical[x - 1][z])) {
+                    if (vertical[x][z] || (x + 1 < mapSize[0] && (vertical[x + 1][z] || (horizontal[x + 1][z] && !horizontal[x][z])))|| (x >= 1 && (vertical[x - 1][z] || (horizontal[x - 1][z] && !horizontal[x][z])))) {
                         ok = false;
                         break;
                     }
                 }
-                if (z >= 0 && vertical[x][z]) {
+                if (z >= 0 && (vertical[x][z] || horizontal[x][z])) {
                     ok = false;
                     continue;
                 }
                 if (ok && cnt >= 2) {
+                    words[wid].turn = -1;
                     res.push_back(PositionedWord{
                         .id = word.idx,
                         .dir = 1,
@@ -368,6 +391,7 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
         for(int x = 0; x < mapSize[0]; x++) {
             for(int wid = 0; wid < words.size(); wid++) {
                 const auto &word = words[wid];
+                if (word.turn == -1) continue;
                 int y = py;
                 bool ok = true;
                 int cnt = 0;
@@ -395,6 +419,7 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                     continue;
                 }
                 if (ok && cnt >= 2) {
+                    words[wid].turn = -1;
                     res.push_back(PositionedWord{
                             .id = word.idx,
                             .dir = 3,
@@ -455,20 +480,34 @@ int main() {
             for(int i = 0; i < words.size(); i++) {
                 word_idx[words[i].idx] = i;
             }
-            idx = 0;
-            for (const auto &w: words) {
-                auto &r = w.r;
-                for (int i = 0; i < r.size(); i++) {
-                    wp[{0, r[i]}].push_back(idx);
-                }
-
-                idx++;
-            }
             auto pw = findLadder(status.words, status.usedWords, status.mapSize);
             vector<int> curr_used = status.usedWords;
             int xMin = 1e9, xMax = -1;
+            cout << "baseLadder: ";
             for(const auto &w: pw) {
+                cout << w.id << ' ' << words[word_idx[w.id]].s << endl;
                 curr_used.push_back(w.id);
+            }
+            idx = 0;
+            for (const auto &w: words) {
+                auto &r = w.r;
+                bool found = false;
+                for (const int u: curr_used) {
+                    if (u == w.idx) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    idx++;
+                    continue;
+                }
+                for (int i = 0; i < r.size(); i++) {
+                    wp[{i, r[i]}].push_back(idx);
+                }
+                idx++;
+            }
+            for(const auto &w: pw) {
                 if (w.dir == 2) {
                     xMin = min(xMin, w.pos[0]);
                     xMax = max(xMax, w.pos[0] + (int) words[word_idx[w.id]].r.size());
@@ -476,16 +515,21 @@ int main() {
             }
             auto base_word = words[word_idx[pw[0].id]];
             auto connector = words[wp[{0, base_word.r[0]}][0]];
+            cout << endl << "base + connector:" << base_word.s << ' ' << connector.s << endl;
+            cout << base_word.r[0] << ' ' << connector.r[0] << endl;
             pw.push_back(PositionedWord{
                 .id = connector.idx,
                 .dir = 3,
                 .pos = {0, 0, 0}
             });
+            cout << endl << "connector " << connector.idx << endl;
             curr_used.push_back(connector.idx);
-            for (int y = connector.r.size(); y > 1; y--) {
+            for (int y = connector.r.size() - 1; y > 1; y--) {
                 auto nw = findLadder(status.words, curr_used, status.mapSize, connector.r[y], 0, xMin, xMax);
                 if (!nw.empty()) {
+                    cout << "yLadder: ";
                     for (auto &w : nw) {
+                        cout << w.id << ' ' << words[word_idx[w.id]].s << ' ' << w.pos[0] << ' ' << w.pos[1] << ' ' << w.pos[2] << ' ' << w.dir << endl;
                         w.pos[1] = y;
                         pw.push_back(w);
                         curr_used.push_back(w.id);
@@ -496,6 +540,7 @@ int main() {
                     }
                     y--;
                 }
+                //предусмотрительность
                 cout << y << ' ' << nw.size() << ' ' << xMin << ' ' << xMax << endl;
             }
             int x_offs = 0;
@@ -508,20 +553,33 @@ int main() {
                 i.pos[0] -= x_offs;
                 i.pos[1] -= y_offs;
             }
+            cout << x_offs << ' ' << y_offs << endl;
             for(int i = 0; i < enrichCnt; i++) {
                 for(int y = 0; y < status.mapSize[1]; y++) {
                     auto ew = enrichZ(rs, curr_used, status.mapSize, pw, y);
+                    cout << "enrichY " << i << ' ' << y << ":";
                     for (const auto &w: ew) {
+                        cout << w.id << ' ' << words[word_idx[w.id]].s << ' ' << w.pos[0] << ' ' << w.pos[1] << ' ' << w.pos[2] << ' ' << w.dir << endl;
                         pw.push_back(w);
                         curr_used.push_back(w.id);
+                    }
+                    cout << endl;
+                    if (ew.size() > 0) {
+                        cout << "enriched Oz(" << ew.size() << ") with y = " << y << endl;
                     }
                 }
 
                 for(int z = status.mapSize[2] - 1; z >= 0 ; z--) {
                     auto ew = enrichY(rs, curr_used, status.mapSize, pw, z);
+                    cout << "enrichZ " << i << ' ' << z << ":";
                     for (const auto &w: ew) {
+                        cout << w.id << ' ' << words[word_idx[w.id]].s << ' ' << w.pos[0] << ' ' << w.pos[1] << ' ' << w.pos[2] << ' ' << w.dir << endl;
                         pw.push_back(w);
                         curr_used.push_back(w.id);
+                    }
+                    cout << endl;
+                    if (ew.size() > 0) {
+                        cout << "enriched Oy(" << ew.size() << ") with z = " << z << endl;
                     }
                 }
             }
@@ -531,13 +589,12 @@ int main() {
                     .done = true,
                     .words = pw
             });
-            Status st2 = words_wrapper();
-            cout << "used " << st2.usedWords.size() << endl;
-//        sleep(st2.nextTurnSec + 3);
-            status = words_wrapper();
             while(true) {
                 sleep(1);
             }
+            Status st2 = words_wrapper();
+            sleep(st2.nextTurnSec + 1);
+            status = words_wrapper();
         }
     });
 

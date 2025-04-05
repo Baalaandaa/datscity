@@ -162,7 +162,7 @@ Status words_wrapper(){
     std::thread t([&cv, &retValue]()
                   {
                       try {
-                          retValue = simWords();
+                          retValue = api_words();
                       } catch (exception e) {
                           return;
                       }
@@ -243,8 +243,8 @@ BuildResponse build(const BuildRequest &t) {
             throw std::exception();
         }
         cout << res->body << endl;
-        BuildResponse resp(json::parse(res->body));
-        return resp;
+//        BuildResponse resp(json::parse(res->body));
+        return BuildResponse{};
     }
     catch (const std::exception& e)
     {
@@ -262,7 +262,7 @@ BuildResponse build_wrapper(BuildRequest req)
     std::thread t([&cv, &retValue, &req]()
                   {
                       try {
-                          retValue = simBuild(req);
+                          retValue = build(req);
                       } catch (exception e) {
                           return;
                       }
