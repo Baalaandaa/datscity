@@ -226,9 +226,9 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                 r, idx, 0, ""
         });
     }
-    vector<vector<int> > xz(mapSize[0], vector<int> (mapSize[1], -1));
-    vector<vector<bool> > horizontal(mapSize[0], vector<bool> (mapSize[1], false));
-    vector<vector<bool> > vertical(mapSize[0], vector<bool> (mapSize[1], false));
+    vector<vector<int> > xz(mapSize[0], vector<int> (mapSize[2], -1));
+    vector<vector<bool> > horizontal(mapSize[0], vector<bool> (mapSize[2], false));
+    vector<vector<bool> > vertical(mapSize[0], vector<bool> (mapSize[2], false));
     for(int i = 0; i < already.size(); i++) {
         const auto &wrd = already[i];
         int len = w[wrd.id].size();
@@ -259,9 +259,9 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                 int z = pz;
                 bool ok = true;
                 int cnt = 0;
-                if (z < mapSize[2] && vertical[x][z + 1]) {
+                if (z + 1 < mapSize[2] && vertical[x][z + 1]) {
                     ok = false;
-                    break;
+                    continue;
                 }
                 for(int i = 0; i < word.r.size(); i++, z--) {
                     if (z < 0){
@@ -277,6 +277,10 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                         ok = false;
                         break;
                     }
+                }
+                if (z >= 0 && vertical[x][z]) {
+                    ok = false;
+                    continue;
                 }
                 if (ok && cnt >= 2) {
                     res.push_back(PositionedWord{
@@ -294,6 +298,102 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
         }
     }
     return res;
+}
+
+vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> mapSize, vector<PositionedWord> &already, int z) {
+    vector<word> words;
+    int idx = -1;
+    for(const runes &r: w) {
+        idx++;
+        if (r.size() > zEnrichLimit) {
+            continue;
+        }
+        bool skip = false;
+        for(const int u: used) {
+            if (idx == u) {
+                skip = true;
+                break;
+            }
+        }
+        if (skip) continue;
+        words.push_back({
+                                r, idx, 0, ""
+                        });
+    }
+    vector<vector<int> > xy(mapSize[0], vector<int> (mapSize[1], -1));
+    vector<vector<bool> > horizontal(mapSize[0], vector<bool> (mapSize[1], false));
+    vector<vector<bool> > vertical(mapSize[0], vector<bool> (mapSize[1], false));
+    for(int i = 0; i < already.size(); i++) {
+        const auto &wrd = already[i];
+        int len = w[wrd.id].size();
+        if(wrd.pos[2] != z && wrd.dir != 1) {
+            continue;
+        }
+        if (wrd.dir == 1) {
+            int x = wrd.pos[0], y = wrd.pos[1];
+            if (wrd.pos[2] >= z && z > wrd.pos[2] - len) {
+                xy[x][y] = w[wrd.id][wrd.pos[2] - z];
+                vertical[x][y] = true;
+            }
+        } else if (wrd.dir == 2) {
+            int y = wrd.pos[1];
+            for(int x = wrd.pos[0]; x < wrd.pos[0] + len; x++) {
+                xy[x][y] = w[wrd.id][x - wrd.pos[0]];
+            }
+        } else {
+            int x = wrd.pos[0];
+            for(int y = wrd.pos[1]; y < wrd.pos[1] + len; y++) {
+                xy[x][y] = w[wrd.id][y - wrd.pos[1]];
+                horizontal[x][y] = true;
+            }
+        }
+    }
+    vector<PositionedWord> res;
+    for(int py = 0; py < mapSize[1]; py++) {
+        for(int x = 0; x < mapSize[0]; x++) {
+            for(int wid = 0; wid < words.size(); wid++) {
+                const auto &word = words[wid];
+                int y = py;
+                bool ok = true;
+                int cnt = 0;
+                if (y - 1 >= 0 && horizontal[x][y - 1]) {
+                    ok = false;
+                    continue;
+                }
+                for(int i = 0; i < word.r.size(); i++, y++) {
+                    if (y >= mapSize[1]) {
+                        ok = false;
+                        break;
+                    }
+                    if (horizontal[x][y] || (x > 0 && horizontal[x - 1][y]) || (x + 1 < mapSize[0] && horizontal[x + 1][y])) {
+                        ok = false;
+                        break;
+                    }
+                    if (xy[x][y] != -1 && word.r[i] != xy[x][y]) {
+                        ok = false;
+                        break;
+                    }
+                    cnt += vertical[x][y];
+                }
+                if (y < mapSize[1] && horizontal[x][y]) {
+                    ok = false;
+                    continue;
+                }
+                if (ok && cnt >= 2) {
+                    res.push_back(PositionedWord{
+                            .id = word.idx,
+                            .dir = 1,
+                            .pos = {x, py, z}
+                    });
+                    y = py;
+                    for(int i = 0; i < word.r.size(); i++, y++) {
+                        xy[x][y] = word.r[i];
+                        vertical[x][y] = true;
+                    }
+                }
+            }
+        }
+    }
 }
 
 uint64_t timeSinceEpochMillisec() {
@@ -394,6 +494,14 @@ int main() {
             }
             for(int y = 0; y < status.mapSize[1]; y++) {
                 auto ew = enrichZ(rs, curr_used, status.mapSize, pw, y);
+                for (const auto &w: ew) {
+                    pw.push_back(w);
+                    curr_used.push_back(w.id);
+                }
+            }
+
+            for(int z = status.mapSize[2] - 1; z >= 0 ; z--) {
+                auto ew = enrichY(rs, curr_used, status.mapSize, pw, z);
                 for (const auto &w: ew) {
                     pw.push_back(w);
                     curr_used.push_back(w.id);
