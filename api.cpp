@@ -34,7 +34,7 @@ void simInit() {
         }
     }
     for(int i = 0; i < 1000; i++) {
-        sim_words.push_back(dict[2 * i + rand() % 2]);
+        sim_words.push_back(dict[i]);
     }
 }
 
