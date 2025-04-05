@@ -11,7 +11,7 @@ using runes = vector<int>;
 
 const int zEnrichLimit = 30;
 const int yEnrichLimit = 30;
-const int enrichCnt = 5;
+const int enrichCnt = 150;
 
 struct word {
     runes r;
@@ -23,8 +23,6 @@ struct word {
 bool cmp(word l, word r) {
     return l.r.size() > r.r.size();
 }
-//
-//244141ms elapsed875 USED{"code":2,"message":"word [19 0 97] 1 \"сплавление\" is very close to [19 1 88] 3 \"педогенез\""}
 struct dw {
     int d;
     int l;
@@ -418,7 +416,7 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                 xz[x][z] = w[wrd.id][y - wrd.pos[1]];
                 horizontal[x][z] = true;
             }
-            if (y > 0 && y + 1 == wrd.pos[1]) {
+            if (y + 1 == wrd.pos[1]) {
                 horizontalDiffY[x][z] = true;
             }
             if (wrd.pos[1] + len == y) {
@@ -443,6 +441,7 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                     ok = false;
                     continue;
                 }
+                if (z - (int)word.r.size() + 1 < 0) continue;
                 for (int i = 0; i < word.r.size(); i++, z--) {
                     if (z < 0) {
                         ok = false;
@@ -567,6 +566,7 @@ vector<PositionedWord> enrichX(vector<runes> &w, vector<int> &used, vector<int> 
                     ok = false;
                     continue;
                 }
+                if (x + (int)word.r.size() - 1 >= mapSize[0]) continue;
                 for (int i = 0; i < word.r.size(); i++, x++) {
                     if (x >= mapSize[0]) {
                         ok = false;
@@ -595,7 +595,7 @@ vector<PositionedWord> enrichX(vector<runes> &w, vector<int> &used, vector<int> 
                     ok = false;
                     continue;
                 }
-                if (ok && cnt >= 2) {
+                if (ok && (cnt >= 2 || z == 0)) {
                     words[wid].turn = -1;
                     res.push_back(PositionedWord{
                             .id = word.idx,
@@ -695,6 +695,7 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                     ok = false;
                     continue;
                 }
+                if (y + (int)word.r.size() - 1 >= mapSize[1]) continue;
                 for (int i = 0; i < word.r.size(); i++, y++) {
                     if (y >= mapSize[1]) {
                         ok = false;
@@ -723,7 +724,7 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                     ok = false;
                     continue;
                 }
-                if (ok && cnt >= 2) {
+                if (ok && (cnt >= 2 || z == 0)) {
                     words[wid].turn = -1;
                     res.push_back(PositionedWord{
                             .id = word.idx,
@@ -835,7 +836,7 @@ int main() {
             int cnt_y = 1;
             for (int y = connector.r.size() - 1; y > 1; y--) {
                 cnt_y++;
-                if (cnt_y % 3 == 1) {
+                if (cnt_y % 2 == 1) {
                     continue;
                 }
                 auto nw = findLadder(status.words, curr_used, status.mapSize, connector.r[y], 0, xMin, xMax);
@@ -871,7 +872,11 @@ int main() {
             }
             cout << x_offs << ' ' << y_offs << endl;
             for (int i = 0; i < enrichCnt; i++) {
-                for (int z = status.mapSize[2] - 1; z >= (enrichCnt - 1 - i) * 10; z--) {
+                int mz = max(status.mapSize[2] - max(10, status.mapSize[2] / enrichCnt) * (i + 1), 0);
+//                mz = min(mz, 85);
+                cerr << "itenrich " << i << ' ' << mz << endl;
+                int sum = 0;
+                for (int z = status.mapSize[2] - 1; z >= mz; z--) {
                     auto ew = enrichY(rs, curr_used, status.mapSize, pw, z);
 //                    cout << "enrichZ " << i << ' ' << z << ":";
                     for (const auto &w: ew) {
@@ -882,10 +887,11 @@ int main() {
                     }
 //                    cout << endl;
                     if (ew.size() > 0) {
+                        sum += ew.size();
                         cout << "enriched Oy(" << ew.size() << ") with z = " << z << endl;
                     }
                 }
-                for (int z = status.mapSize[2] - 1; z >= (enrichCnt - 1 - i) * 10; z--) {
+                for (int z = status.mapSize[2] - 1; z >= mz; z--) {
                     auto ew = enrichX(rs, curr_used, status.mapSize, pw, z);
                     for (const auto &w: ew) {
                         cout << w.id << ' ' << words[word_idx[w.id]].s << ' ' << w.pos[0] << ' ' << w.pos[1] << ' ' << w
@@ -894,11 +900,12 @@ int main() {
                         curr_used.push_back(w.id);
                     }
                     if (ew.size() > 0) {
+                        sum += ew.size();
                         cout << "enriched Ox(" << ew.size() << ") with z = " << z << endl;
                     }
                 }
                 for (int y = 0; y < status.mapSize[1]; y++) {
-                    auto ew = enrichZ(rs, curr_used, status.mapSize, pw, y, 0);
+                    auto ew = enrichZ(rs, curr_used, status.mapSize, pw, y, mz);
 //                        cout << "enrichY " << i << ' ' << y << ":";
                     for (const auto &w: ew) {
                         cout << w.id << ' ' << words[word_idx[w.id]].s << ' ' << w.pos[0] << ' ' << w.pos[1] << ' '
@@ -908,8 +915,12 @@ int main() {
                         curr_used.push_back(w.id);
                     }
                     if (ew.size() > 0) {
+                        sum += ew.size();
                         cout << "enriched Oz" << 0 << "(" << ew.size() << ") with y = " << y << endl;
                     }
+                }
+                if (sum == 0 && mz == 0 && i >= 20) {
+                    break;
                 }
             }
 

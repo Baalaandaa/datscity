@@ -6,7 +6,7 @@ set(OPENSSL_USE_STATIC_LIBS TRUE)
 find_package(OpenSSL REQUIRED)
 
 add_executable(datscity main.cpp)
-add_definitions("-g")
+add_definitions("-g -Ofast")
 
 find_package(OpenGL REQUIRED)
 

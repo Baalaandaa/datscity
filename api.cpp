@@ -2,7 +2,7 @@
 #include "model.cpp"
 #include "utils.cpp"
 using namespace std;
-//#define SIM 1
+#define SIM 1
 
 httplib::Client cli("http://games-test.datsteam.dev");
 
