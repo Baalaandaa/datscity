@@ -3,3 +3,5 @@ cmake-build-debug
 datscity
 logs/
 .idea
+DS_Store
+log.txt
