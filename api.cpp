@@ -2,6 +2,7 @@
 #include "model.cpp"
 #include "utils.cpp"
 using namespace std;
+//#define SIM 1
 
 httplib::Client cli("http://games-test.datsteam.dev");
 
@@ -162,7 +163,11 @@ Status words_wrapper(){
     std::thread t([&cv, &retValue]()
                   {
                       try {
+#ifdef SIM
+                          retValue = simWords();
+#else
                           retValue = api_words();
+#endif
                       } catch (exception e) {
                           return;
                       }
@@ -262,7 +267,11 @@ BuildResponse build_wrapper(BuildRequest req)
     std::thread t([&cv, &retValue, &req]()
                   {
                       try {
+#ifdef SIM
+                          retValue = simBuild(req);
+#else
                           retValue = build(req);
+#endif
                       } catch (exception e) {
                           return;
                       }

@@ -9,9 +9,9 @@
 using namespace std;
 using runes = vector<int>;
 
-const int zEnrichLimit = 9;
-const int yEnrichLimit = 9;
-const int enrichCnt = 3;
+const int zEnrichLimit = 30;
+const int yEnrichLimit = 30;
+const int enrichCnt = 5;
 
 struct word {
     runes r;
@@ -23,7 +23,8 @@ struct word {
 bool cmp(word l, word r) {
     return l.r.size() > r.r.size();
 }
-
+//
+//244141ms elapsed875 USED{"code":2,"message":"word [19 0 97] 1 \"сплавление\" is very close to [19 1 88] 3 \"педогенез\""}
 struct dw {
     int d;
     int l;
@@ -46,7 +47,7 @@ bool operator==(const dw &a, const dw &b) {
 
 vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int> mapSize, int base_char = -1,
                                   int base_pos = 0, int xMin = 0, int xMax = 0, int prev_base = -1, int lx_old = -1,
-                                  int rx_old = -1) {
+                                  int rx_old = -1, int prev_z = 0, vector<PositionedWord> already = {}) {
     vector<word> words;
     map<pair<int, int>, vector<int> > wp;
     map<pair<int, pair<int, int> >, vector<pair<int, int> > > dw;
@@ -65,9 +66,11 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
             continue;
         }
         runes r = from_utf8(w);
-        words.push_back({
-            r, idx, 0, w
-        });
+//        if (r.size() >= 5) {
+            words.push_back({
+                                    r, idx, 0, w
+                            });
+//        }
         idx++;
     }
     sort(words.begin(), words.end(), cmp);
@@ -95,9 +98,29 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
     vector<thread> threads;
     mutex sol;
 
+    vector<vector<int> > xz(mapSize[0] + 200, vector<int>(mapSize[2], -1));
+    for (int ai = 0; ai < already.size(); ai++) {
+        int x = already[ai].pos[0], z = already[ai].pos[2];
+        auto r = from_utf8(w[already[ai].id]);
+        if (already[ai].dir != 1) {
+            continue;
+        }
+        cout << x << ' ' << z << ' ' << r.size() << endl;
+        for (int i = 0; i < r.size(); i++, z--) {
+            xz[x + 100][z] = r[i];
+        }
+    }
+    if (prev_z != 0) {
+//        for(int x = 0; x < xz.size(); x++) {
+//            for(int z = 0; z < xz[0].size(); z++) {
+//                cout << (xz[x][z] == -1 ? '.' : '+');
+//            }
+//            cout << endl;
+//        }
+    }
     for (int base_idx = (prev_base == -1 ? 0 : base_id[prev_base]); base_idx < (prev_base == -1
-                                                                        ? min(25, (int) words.size())
-                                                                        : base_id[prev_base] + 1); base_idx++) {
+                                                                                ? min(50, (int) words.size())
+                                                                                : base_id[prev_base] + 1); base_idx++) {
         threads.emplace_back([&, base_idx]() {
             int base_x = 0;
             if (base_char != -1) {
@@ -105,6 +128,7 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                 for (int i = 0; i < words[base_idx].r.size(); i++) {
                     if (words[base_idx].r[i] == base_char) {
                         base_x = i;
+                        break;
                     }
                 }
                 if (base_x == -1) {
@@ -125,6 +149,24 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                     if (lx == lx_old || lx == rx_old || rx == lx_old || rx == rx_old) {
                         continue;
                     }
+                    if (xz[lx + base_pos - base_x + 100][prev_z] != -1 ||
+                        xz[rx + base_pos - base_x + 100][prev_z] != -1) {
+                        continue;
+                    }
+                    // +1
+                    if (xz[lx + base_pos - base_x + 101][prev_z] != -1 ||
+                        xz[rx + base_pos - base_x + 101][prev_z] != -1) {
+                        continue;
+                    }
+                    // -1
+                    if (xz[lx + base_pos - base_x + 99][prev_z] != -1 ||
+                        xz[rx + base_pos - base_x + 99][prev_z] != -1) {
+                        continue;
+                    }
+                    if (prev_z > 0 && (xz[lx + base_pos - base_x + 100][prev_z - 1] != -1 ||
+                                       xz[rx + base_pos - base_x + 100][prev_z - 1] != -1)) {
+                        continue;
+                    }
 
                     vector<int> lpos = wp[{0, base.r[lx]}];
                     vector<int> rpos = wp[{0, base.r[rx]}];
@@ -137,10 +179,14 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                             const auto &r = words[ridx];
                             int fstart = (int) min(l.r.size(), r.r.size());
                             int fend = (int) max(l.r.size(), r.r.size());
+                            if (fend + prev_z + 1 >= mapSize[2]) {
+                                continue;
+                            }
                             //                            score += (fstart + 1 + fend) * (fend - fstart) / 2;
                             for (int floor = fstart - 1; floor > 1; floor--) {
+                                if ((floor + prev_z) % 2) continue;
                                 vector<pair<int, int> > possible_tops = dw[{
-                                    d, {l.r[l.r.size() - 1 - floor], r.r[r.r.size() - 1 - floor]}
+                                        d, {l.r[l.r.size() - 1 - floor], r.r[r.r.size() - 1 - floor]}
                                 }];
                                 int min_delta = mapSize[0], mti = -1;
                                 for (int ti = 0; ti < possible_tops.size(); ti++) {
@@ -160,6 +206,28 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                                     const auto &top = words[possible_tops[ti].first];
                                     int idx = possible_tops[ti].second;
                                     int len = (int) top.r.size();
+                                    if (tops.size() == 0 && len < 9) continue;
+                                    int start = base_pos - base_x + lx - idx;
+                                    int x = start, z = floor + prev_z;
+                                    if (xz[x + 99][z] != -1) {
+                                        continue;
+                                    }
+                                    for (int i = 0; i < len; i++, x++) {
+                                        if (xz[x + 100][z] != -1 && xz[x + 100][z] != top.r[i]) {
+                                            coll = true;
+                                            break;
+                                        }
+                                        if (z > 0 && xz[x + 100][z] == -1 && xz[x + 100][z - 1] != -1) {
+                                            coll = true;
+                                            break;
+                                        }
+                                    }
+                                    if (xz[x + 100][z] != -1) {
+                                        continue;
+                                    }
+                                    if (coll) {
+                                        continue;
+                                    }
                                     int xl = min(xmn, base_pos - base_x + lx - idx);
                                     int xr = max(xmx, base_pos - base_x + lx - idx + len);
                                     if (xr - xl + 1 >= mapSize[0]) {
@@ -176,7 +244,7 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
                                 }
                                 score += 1.25 * floor;
                                 tops.emplace_back(floor, possible_tops[mti]);
-                                floor--;
+//                                floor--;
                             }
                             if (tops.empty()) continue;
                             sol.lock();
@@ -212,50 +280,90 @@ vector<PositionedWord> findLadder(vector<string> w, vector<int> used, vector<int
         return {};
     }
     vector<PositionedWord> res;
+    if (prev_base == -1) {
+        res.push_back(PositionedWord{
+                .id = words[fbidx].idx,
+                .dir = 2,
+                .pos = {f_base_idx - f_base_x, 0, prev_z},
+        });
+    }
+    cout << "BASE: " << f_base_idx - f_base_x << ' ' << prev_z << endl;
     res.push_back(PositionedWord{
-        .id = words[fbidx].idx,
-        .dir = 2,
-        .pos = {f_base_idx - f_base_x, 0, 0},
+            .id = words[flidx].idx,
+            .dir = 1,
+            .pos = {f_base_idx - f_base_x + flx, 0, static_cast<int>(words[flidx].r.size()) - 1 + prev_z}
     });
     res.push_back(PositionedWord{
-        .id = words[flidx].idx,
-        .dir = 1,
-        .pos = {f_base_idx - f_base_x + flx, 0, static_cast<int>(words[flidx].r.size()) - 1}
-    });
-    res.push_back(PositionedWord{
-        .id = words[fridx].idx,
-        .dir = 1,
-        .pos = {f_base_idx - f_base_x + frx, 0, static_cast<int>(words[fridx].r.size()) - 1}
+            .id = words[fridx].idx,
+            .dir = 1,
+            .pos = {f_base_idx - f_base_x + frx, 0, static_cast<int>(words[fridx].r.size()) - 1 + prev_z}
     });
     int fi = 0;
-
+    if (ftops.size() == 0) {
+        return {};
+    }
+    int minX = min(xMin, f_base_idx - f_base_x);
+    int maxX = max(xMax, f_base_idx - f_base_x + (int) words[fbidx].r.size());
     for (auto &ftop: ftops) {
         auto &top = words[ftop.second.first];
 
         if (fi == 0) {
-            used.push_back(words[fbidx].idx);
-            used.push_back(words[flidx].idx);
-            used.push_back(words[fridx].idx);
-
-            findLadder(w, used, mapSize, base_char, base_pos, 0, 0, top.idx, flx, frx);
+            fi++;
+            continue;
+        }
+        if (prev_z >= 50 && prev_z < 80) {
+            if (fi % 4 == 2) {
+                fi++;
+                continue;
+            }
+        } else if (prev_z >= 10) {
+            if (fi % 3 == 1) {
+                fi++;
+                continue;
+            }
+        } else {
+            continue;
         }
 
         int floor = ftop.first;
         int offs = ftop.second.second;
         res.push_back(PositionedWord{
+                .id = top.idx,
+                .dir = 2,
+                .pos = {f_base_idx - f_base_x + flx - offs, 0, floor + prev_z}
+        });
+        minX = min(f_base_idx - f_base_x + flx - offs, minX);
+        maxX = max(f_base_idx - f_base_x + flx - offs + (int) top.r.size(), maxX);
+
+        used.push_back(top.idx);
+        fi++;
+    }
+
+    auto &top = words[ftops[0].second.first];
+    int floor = ftops[0].first;
+    int offs = ftops[0].second.second;
+    res.push_back(PositionedWord{
             .id = top.idx,
             .dir = 2,
-            .pos = {f_base_idx - f_base_x + flx - offs, 0, floor}
-        });
-
-        fi++;
+            .pos = {f_base_idx - f_base_x + flx - offs, 0, floor + prev_z}
+    });
+    used.push_back(words[fbidx].idx);
+    used.push_back(words[flidx].idx);
+    used.push_back(words[fridx].idx);
+    for (auto &rw: res) {
+        already.push_back(rw);
+    }
+    auto next = findLadder(w, used, mapSize, -1, f_base_idx - f_base_x + flx - offs, minX, maxX, top.idx, flx, frx,
+                           floor + prev_z, already);
+    for (auto &nw: next) {
+        res.push_back(nw);
     }
     return res;
 }
 
 
 vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> mapSize,
-                               vector<PositionedWord> &already, int y) {
+                               vector<PositionedWord> &already, int y, int min_z = 0) {
     vector<word> words;
     int idx = -1;
     for (const runes &r: w) {
@@ -272,11 +380,13 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
         }
         if (skip) continue;
         words.push_back({
-            r, idx, 0, ""
-        });
+                                r, idx, 0, ""
+                        });
     }
     vector<vector<int> > xz(mapSize[0], vector<int>(mapSize[2], -1));
     vector<vector<bool> > horizontal(mapSize[0], vector<bool>(mapSize[2], false));
+    vector<vector<bool> > horizontalDiff(mapSize[0], vector<bool>(mapSize[2], false));
+    vector<vector<bool> > horizontalDiffY(mapSize[0], vector<bool>(mapSize[2], false));
     vector<vector<bool> > vertical(mapSize[0], vector<bool>(mapSize[2], false));
     for (int i = 0; i < already.size(); i++) {
         const auto &wrd = already[i];
@@ -298,6 +408,9 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                     xz[x][z] = w[wrd.id][x - wrd.pos[0]];
                     horizontal[x][z] = true;
                 }
+                if (abs(wrd.pos[1] - y) == 1) {
+                    horizontalDiff[x][z] = true;
+                }
             }
         } else {
             int x = wrd.pos[0], z = wrd.pos[2];
@@ -305,10 +418,16 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                 xz[x][z] = w[wrd.id][y - wrd.pos[1]];
                 horizontal[x][z] = true;
             }
+            if (y > 0 && y + 1 == wrd.pos[1]) {
+                horizontalDiffY[x][z] = true;
+            }
+            if (wrd.pos[1] + len == y) {
+                horizontalDiffY[x][z] = true;
+            }
         }
     }
     vector<PositionedWord> res;
-    for (int pz = mapSize[2]; pz > 0; pz--) {
+    for (int pz = mapSize[2] - 1; pz > min_z; pz--) {
         for (int lx = 0; lx < mapSize[0]; lx++) {
             int x = mapSize[0] / 2 + (lx % 2 == 0 ? -(lx / 2) : (lx / 2));
             //            cout << "PROCESSING" << x << ' ' << pz << endl;
@@ -334,9 +453,13 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                         ok = false;
                         break;
                     }
+                    if (horizontalDiffY[x][z] || horizontalDiff[x][z]) {
+                        ok = false;
+                        break;
+                    }
                     if (vertical[x][z] || (x + 1 < mapSize[0] && (
-                                               vertical[x + 1][z] || (horizontal[x + 1][z] && !horizontal[x][z]))) || (
-                            x >= 1 && (vertical[x - 1][z] || (horizontal[x - 1][z] && !horizontal[x][z])))) {
+                            vertical[x + 1][z] || (horizontal[x + 1][z] && !horizontal[x][z]))) || (
+                                x >= 1 && (vertical[x - 1][z] || (horizontal[x - 1][z] && !horizontal[x][z])))) {
                         ok = false;
                         break;
                     }
@@ -348,14 +471,141 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                 if (ok && cnt >= 2) {
                     words[wid].turn = -1;
                     res.push_back(PositionedWord{
-                        .id = word.idx,
-                        .dir = 1,
-                        .pos = {x, y, pz}
+                            .id = word.idx,
+                            .dir = 1,
+                            .pos = {x, y, pz}
                     });
                     z = pz;
                     for (int i = 0; i < word.r.size(); i++, z--) {
                         xz[x][z] = word.r[i];
                         vertical[x][z] = true;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    return res;
+}
+
+vector<PositionedWord> enrichX(vector<runes> &w, vector<int> &used, vector<int> mapSize, vector<PositionedWord> &already, int z) {
+    vector<word> words;
+    int idx = -1;
+    for (const runes &r: w) {
+        idx++;
+        if (r.size() > yEnrichLimit) {
+            continue;
+        }
+        bool skip = false;
+        for (const int u: used) {
+            if (idx == u) {
+                skip = true;
+                break;
+            }
+        }
+        if (skip) continue;
+        words.push_back({
+                                r, idx, 0, ""
+                        });
+    }
+    vector<vector<int> > xy(mapSize[0], vector<int>(mapSize[1], -1));
+    vector<vector<bool> > horizontal(mapSize[0], vector<bool>(mapSize[1], false));
+    vector<vector<bool> > horizontalDiff(mapSize[0], vector<bool>(mapSize[1], false));
+    vector<vector<bool> > horizontalX(mapSize[0], vector<bool>(mapSize[1], false));
+    vector<vector<bool> > horizontalDiffX(mapSize[0], vector<bool>(mapSize[1], false));
+    vector<vector<bool> > vertical(mapSize[0], vector<bool>(mapSize[1], false));
+    vector<vector<bool> > verticalDiff(mapSize[0], vector<bool>(mapSize[1], false));
+    for (int i = 0; i < already.size(); i++) {
+        const auto &wrd = already[i];
+        int len = w[wrd.id].size();
+        if (wrd.dir == 1) {
+            int x = wrd.pos[0], y = wrd.pos[1];
+            if (wrd.pos[2] >= z && z > wrd.pos[2] - len) {
+                xy[x][y] = w[wrd.id][wrd.pos[2] - z];
+                vertical[x][y] = true;
+            }
+            if (z > 0 && wrd.pos[2] == z - 1) {
+                verticalDiff[x][y] = true;
+            }
+            if (z == wrd.pos[2] - len) {
+                verticalDiff[x][y] = true;
+            }
+        } else if (wrd.dir == 2) {
+            int y = wrd.pos[1];
+            for (int x = wrd.pos[0]; x < wrd.pos[0] + len; x++) {
+                if (wrd.pos[2] == z) {
+                    xy[x][y] = w[wrd.id][x - wrd.pos[0]];
+                    horizontalX[x][y] = true;
+                }
+                if (abs(wrd.pos[2] - z) == 1) {
+                    horizontalDiffX[x][y] = true;
+                }
+            }
+        } else {
+            int x = wrd.pos[0];
+            for (int y = wrd.pos[1]; y < wrd.pos[1] + len; y++) {
+                if (wrd.pos[2] == z) {
+                    xy[x][y] = w[wrd.id][y - wrd.pos[1]];
+                    horizontal[x][y] = true;
+                }
+                if (abs(wrd.pos[2] - z) == 1) {
+                    horizontalDiff[x][y] = true;
+                }
+            }
+        }
+    }
+    vector<PositionedWord> res;
+    for (int px = 0; px < mapSize[0]; px++) {
+        for (int y = 0; y < mapSize[1]; y++) {
+            for (int wid = 0; wid < words.size(); wid++) {
+                const auto &word = words[wid];
+                if (word.turn == -1) continue;
+                int x = px;
+                bool ok = true;
+                int cnt = 0;
+                if (x - 1 >= 0 && (horizontal[x - 1][y] || horizontalX[x - 1][y] || vertical[x - 1][y])) {
+                    ok = false;
+                    continue;
+                }
+                for (int i = 0; i < word.r.size(); i++, x++) {
+                    if (x >= mapSize[0]) {
+                        ok = false;
+                        break;
+                    }
+                    if (verticalDiff[x][y]) {
+                        ok = false;
+                        break;
+                    }
+                    if (horizontalX[x][y] || horizontalDiffX[x][y] || horizontalDiff[x][y] || (
+                            y > 0 && ((horizontal[x][y - 1] && !horizontal[x][y]) || vertical[x][y - 1] ||
+                                      horizontalX[x][y - 1]))
+                        || (y + 1 < mapSize[1] && (
+                            (horizontal[x][y + 1] && !horizontal[x][y]) || vertical[x][y + 1] ||
+                            horizontalX[x][y + 1]))) {
+                        ok = false;
+                        break;
+                    }
+                    if (xy[x][y] != -1 && word.r[i] != xy[x][y]) {
+                        ok = false;
+                        break;
+                    }
+                    cnt += vertical[x][y];
+                }
+                if (x < mapSize[0] && (horizontal[x][y] || vertical[x][y] || horizontalX[x][y])) {
+                    ok = false;
+                    continue;
+                }
+                if (ok && cnt >= 2) {
+                    words[wid].turn = -1;
+                    res.push_back(PositionedWord{
+                            .id = word.idx,
+                            .dir = 2,
+                            .pos = {px, y, z}
+                    });
+                    x = px;
+                    for (int i = 0; i < word.r.size(); i++, x++) {
+                        xy[x][y] = word.r[i];
+                        horizontalX[x][y] = true;
                     }
                     break;
                 }
@@ -383,8 +633,8 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
         }
         if (skip) continue;
         words.push_back({
-            r, idx, 0, ""
-        });
+                                r, idx, 0, ""
+                        });
     }
     vector<vector<int> > xy(mapSize[0], vector<int>(mapSize[1], -1));
     vector<vector<bool> > horizontal(mapSize[0], vector<bool>(mapSize[1], false));
@@ -392,6 +642,7 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
     vector<vector<bool> > horizontalY(mapSize[0], vector<bool>(mapSize[1], false));
     vector<vector<bool> > horizontalDiffY(mapSize[0], vector<bool>(mapSize[1], false));
     vector<vector<bool> > vertical(mapSize[0], vector<bool>(mapSize[1], false));
+    vector<vector<bool> > verticalDiff(mapSize[0], vector<bool>(mapSize[1], false));
     for (int i = 0; i < already.size(); i++) {
         const auto &wrd = already[i];
         int len = w[wrd.id].size();
@@ -401,6 +652,12 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                 xy[x][y] = w[wrd.id][wrd.pos[2] - z];
                 vertical[x][y] = true;
             }
+            if (z > 0 && wrd.pos[2] == z - 1) {
+                verticalDiff[x][y] = true;
+            }
+            if (z == wrd.pos[2] - len) {
+                verticalDiff[x][y] = true;
+            }
         } else if (wrd.dir == 2) {
             int y = wrd.pos[1];
             for (int x = wrd.pos[0]; x < wrd.pos[0] + len; x++) {
@@ -408,7 +665,7 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                     xy[x][y] = w[wrd.id][x - wrd.pos[0]];
                     horizontal[x][y] = true;
                 }
-                if (abs(wrd.pos[2] - z) < 2) {
+                if (abs(wrd.pos[2] - z) == 1) {
                     horizontalDiff[x][y] = true;
                 }
             }
@@ -417,11 +674,9 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
             for (int y = wrd.pos[1]; y < wrd.pos[1] + len; y++) {
                 if (wrd.pos[2] == z) {
                     xy[x][y] = w[wrd.id][y - wrd.pos[1]];
-                    horizontal[x][y] = true;
                     horizontalY[x][y] = true;
                 }
-                if (abs(wrd.pos[2] - z) < 2) {
-                    horizontalDiff[x][y] = true;
+                if (abs(wrd.pos[2] - z) == 1) {
                     horizontalDiffY[x][y] = true;
                 }
             }
@@ -436,7 +691,7 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                 int y = py;
                 bool ok = true;
                 int cnt = 0;
-                if (y - 1 >= 0 && (horizontal[x][y - 1] || vertical[x][y - 1])) {
+                if (y - 1 >= 0 && (horizontal[x][y - 1] || horizontalY[x][y - 1] || vertical[x][y - 1])) {
                     ok = false;
                     continue;
                 }
@@ -445,10 +700,16 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                         ok = false;
                         break;
                     }
+                    if (verticalDiff[x][y]) {
+                        ok = false;
+                        break;
+                    }
                     if (horizontalY[x][y] || horizontalDiffY[x][y] || horizontalDiff[x][y] || (
-                            x > 0 && ((horizontal[x - 1][y] && !horizontal[x][y]) || vertical[x - 1][y]))
+                            x > 0 && ((horizontal[x - 1][y] && !horizontal[x][y]) || vertical[x - 1][y] ||
+                                      horizontalY[x - 1][y]))
                         || (x + 1 < mapSize[0] && (
-                                (horizontal[x + 1][y] && !horizontal[x][y]) || vertical[x + 1][y]))) {
+                            (horizontal[x + 1][y] && !horizontal[x][y]) || vertical[x + 1][y] ||
+                            horizontalY[x + 1][y]))) {
                         ok = false;
                         break;
                     }
@@ -458,21 +719,20 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                     }
                     cnt += vertical[x][y];
                 }
-                if (y < mapSize[1] && (horizontal[x][y] || vertical[x][y])) {
+                if (y < mapSize[1] && (horizontal[x][y] || vertical[x][y] || horizontalY[x][y])) {
                     ok = false;
                     continue;
                 }
                 if (ok && cnt >= 2) {
                     words[wid].turn = -1;
                     res.push_back(PositionedWord{
-                        .id = word.idx,
-                        .dir = 3,
-                        .pos = {x, py, z}
+                            .id = word.idx,
+                            .dir = 3,
+                            .pos = {x, py, z}
                     });
                     y = py;
                     for (int i = 0; i < word.r.size(); i++, y++) {
                         xy[x][y] = word.r[i];
-                        horizontal[x][y] = true;
                         horizontalY[x][y] = true;
                     }
                     break;
@@ -517,17 +777,20 @@ int main() {
                 runes r = from_utf8(w);
                 rs.push_back(r);
                 words.push_back({
-                    r, idx, status.turn, w
-                });
+                                        r, idx, status.turn, w
+                                });
                 idx++;
             }
-
             sort(words.begin(), words.end(), cmp);
+            auto connector = words[0];
+            cout << connector.r.size();
+            vector<int> curr_used = status.usedWords;
+//            status.mapSize = {min((int)connector.r.size() + 5, status.mapSize[0]), min((int)connector.r.size() + 5, status.mapSize[1]), status.mapSize[2]};
+            curr_used.push_back(connector.idx);
             for (int i = 0; i < words.size(); i++) {
                 word_idx[words[i].idx] = i;
             }
-            auto pw = findLadder(status.words, status.usedWords, status.mapSize);
-            vector<int> curr_used = status.usedWords;
+            auto pw = findLadder(status.words, curr_used, status.mapSize, connector.r[0], 0);
             int xMin = 1e9, xMax = -1;
             cout << "baseLadder: ";
             for (const auto &w: pw) {
@@ -560,17 +823,21 @@ int main() {
                 }
             }
             auto base_word = words[word_idx[pw[0].id]];
-            auto connector = words[wp[{0, base_word.r[0]}][0]];
             cout << endl << "base + connector:" << base_word.s << ' ' << connector.s << endl;
             cout << base_word.r[0] << ' ' << connector.r[0] << endl;
             pw.push_back(PositionedWord{
-                .id = connector.idx,
-                .dir = 3,
-                .pos = {0, 0, 0}
+                    .id = connector.idx,
+                    .dir = 3,
+                    .pos = {0, 0, 0}
             });
             cout << endl << "connector " << connector.idx << endl;
             curr_used.push_back(connector.idx);
+            int cnt_y = 1;
             for (int y = connector.r.size() - 1; y > 1; y--) {
+                cnt_y++;
+                if (cnt_y % 3 == 1) {
+                    continue;
+                }
                 auto nw = findLadder(status.words, curr_used, status.mapSize, connector.r[y], 0, xMin, xMax);
                 if (!nw.empty()) {
                     cout << "yLadder: ";
@@ -590,6 +857,8 @@ int main() {
                 //предусмотрительность
                 cout << y << ' ' << nw.size() << ' ' << xMin << ' ' << xMax << endl;
             }
+
+
             int x_offs = 0;
             int y_offs = 0;
             for (const auto &i: pw) {
@@ -602,41 +871,53 @@ int main() {
             }
             cout << x_offs << ' ' << y_offs << endl;
             for (int i = 0; i < enrichCnt; i++) {
-                for (int y = 0; y < status.mapSize[1]; y++) {
-                    auto ew = enrichZ(rs, curr_used, status.mapSize, pw, y);
-                    cout << "enrichY " << i << ' ' << y << ":";
-                    for (const auto &w: ew) {
-                        cout << w.id << ' ' << words[word_idx[w.id]].s << ' ' << w.pos[0] << ' ' << w.pos[1] << ' ' << w
-                                .pos[2] << ' ' << w.dir << endl;
-                        pw.push_back(w);
-                        curr_used.push_back(w.id);
-                    }
-                    cout << endl;
-                    if (ew.size() > 0) {
-                        cout << "enriched Oz(" << ew.size() << ") with y = " << y << endl;
-                    }
-                }
-
-                for (int z = status.mapSize[2] - 1; z >= 0; z--) {
+                for (int z = status.mapSize[2] - 1; z >= (enrichCnt - 1 - i) * 10; z--) {
                     auto ew = enrichY(rs, curr_used, status.mapSize, pw, z);
-                    cout << "enrichZ " << i << ' ' << z << ":";
+//                    cout << "enrichZ " << i << ' ' << z << ":";
                     for (const auto &w: ew) {
                         cout << w.id << ' ' << words[word_idx[w.id]].s << ' ' << w.pos[0] << ' ' << w.pos[1] << ' ' << w
                                 .pos[2] << ' ' << w.dir << endl;
                         pw.push_back(w);
                         curr_used.push_back(w.id);
                     }
-                    cout << endl;
+//                    cout << endl;
                     if (ew.size() > 0) {
                         cout << "enriched Oy(" << ew.size() << ") with z = " << z << endl;
+                    }
+                }
+                for (int z = status.mapSize[2] - 1; z >= (enrichCnt - 1 - i) * 10; z--) {
+                    auto ew = enrichX(rs, curr_used, status.mapSize, pw, z);
+                    for (const auto &w: ew) {
+                        cout << w.id << ' ' << words[word_idx[w.id]].s << ' ' << w.pos[0] << ' ' << w.pos[1] << ' ' << w
+                                .pos[2] << ' ' << w.dir << endl;
+                        pw.push_back(w);
+                        curr_used.push_back(w.id);
+                    }
+                    if (ew.size() > 0) {
+                        cout << "enriched Ox(" << ew.size() << ") with z = " << z << endl;
+                    }
+                }
+                for (int y = 0; y < status.mapSize[1]; y++) {
+                    auto ew = enrichZ(rs, curr_used, status.mapSize, pw, y, 0);
+//                        cout << "enrichY " << i << ' ' << y << ":";
+                    for (const auto &w: ew) {
+                        cout << w.id << ' ' << words[word_idx[w.id]].s << ' ' << w.pos[0] << ' ' << w.pos[1] << ' '
+                             << w
+                                     .pos[2] << ' ' << w.dir << endl;
+                        pw.push_back(w);
+                        curr_used.push_back(w.id);
+                    }
+                    if (ew.size() > 0) {
+                        cout << "enriched Oz" << 0 << "(" << ew.size() << ") with y = " << y << endl;
                     }
                 }
             }
 
             cout << timeSinceEpochMillisec() - cl << "ms elapsed";
+            cout << pw.size() << " USED";
             build_wrapper(BuildRequest{
-                .done = true,
-                .words = pw
+                    .done = true,
+                    .words = pw
             });
             while (true) {
                 sleep(1);
