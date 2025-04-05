@@ -5,9 +5,9 @@
 using namespace std;
 #define SIM 1
 
-httplib::Client cli("http://games-test.datsteam.dev");
+httplib::Client cli("http://games.datsteam.dev");
 
-const string token = "2f97738c-ddab-4f24-8186-552c4620389c";
+const string token = "<token>";
 
 vector<string> sim_words;
 vector<int> sim_used(0);
