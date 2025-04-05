@@ -9,9 +9,9 @@
 using namespace std;
 using runes = vector<int>;
 
-const int zEnrichLimit = 6;
-const int yEnrichLimit = 0;
-const int enrichCnt = 1;
+const int zEnrichLimit = 9;
+const int yEnrichLimit = 9;
+const int enrichCnt = 3;
 
 struct word {
     runes r;
@@ -327,6 +327,7 @@ vector<PositionedWord> enrichZ(vector<runes> &w, vector<int> &used, vector<int> 
                         xz[x][z] = word.r[i];
                         vertical[x][z] = true;
                     }
+                    break;
                 }
             }
         }
@@ -356,6 +357,9 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
     }
     vector<vector<int> > xy(mapSize[0], vector<int> (mapSize[1], -1));
     vector<vector<bool> > horizontal(mapSize[0], vector<bool> (mapSize[1], false));
+    vector<vector<bool> > horizontalDiff(mapSize[0], vector<bool> (mapSize[1], false));
+    vector<vector<bool> > horizontalY(mapSize[0], vector<bool> (mapSize[1], false));
+    vector<vector<bool> > horizontalDiffY(mapSize[0], vector<bool> (mapSize[1], false));
     vector<vector<bool> > vertical(mapSize[0], vector<bool> (mapSize[1], false));
     for(int i = 0; i < already.size(); i++) {
         const auto &wrd = already[i];
@@ -367,21 +371,27 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                 vertical[x][y] = true;
             }
         } else if (wrd.dir == 2) {
-            if(wrd.pos[2] != z) {
-                continue;
-            }
             int y = wrd.pos[1];
             for(int x = wrd.pos[0]; x < wrd.pos[0] + len; x++) {
-                xy[x][y] = w[wrd.id][x - wrd.pos[0]];
+                if(wrd.pos[2] == z) {
+                    xy[x][y] = w[wrd.id][x - wrd.pos[0]];
+                    horizontal[x][y] = true;
+                }
+                if (abs(wrd.pos[2] - z) < 2) {
+                    horizontalDiff[x][y] = true;
+                }
             }
         } else {
             int x = wrd.pos[0];
             for(int y = wrd.pos[1]; y < wrd.pos[1] + len; y++) {
                 if (wrd.pos[2] == z) {
                     xy[x][y] = w[wrd.id][y - wrd.pos[1]];
+                    horizontal[x][y] = true;
+                    horizontalY[x][y] = true;
                 }
                 if (abs(wrd.pos[2] - z) < 2) {
-                    horizontal[x][y] = true;
+                    horizontalDiff[x][y] = true;
+                    horizontalDiffY[x][y] = true;
                 }
             }
         }
@@ -395,7 +405,7 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                 int y = py;
                 bool ok = true;
                 int cnt = 0;
-                if (y - 1 >= 0 && horizontal[x][y - 1]) {
+                if (y - 1 >= 0 && (horizontal[x][y - 1] || vertical[x][y - 1])) {
                     ok = false;
                     continue;
                 }
@@ -404,7 +414,8 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                         ok = false;
                         break;
                     }
-                    if (horizontal[x][y] || (x > 0 && horizontal[x - 1][y]) || (x + 1 < mapSize[0] && horizontal[x + 1][y])) {
+                    if (horizontalY[x][y] || horizontalDiffY[x][y] || horizontalDiff[x][y] || (x > 0 && ((horizontal[x - 1][y] && !horizontal[x][y]) || vertical[x - 1][y]))
+                                                    || (x + 1 < mapSize[0] && ((horizontal[x + 1][y] && !horizontal[x][y]) || vertical[x + 1][y]))) {
                         ok = false;
                         break;
                     }
@@ -414,7 +425,7 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                     }
                     cnt += vertical[x][y];
                 }
-                if (y < mapSize[1] && horizontal[x][y]) {
+                if (y < mapSize[1] && (horizontal[x][y] || vertical[x][y])) {
                     ok = false;
                     continue;
                 }
@@ -429,7 +440,9 @@ vector<PositionedWord> enrichY(vector<runes> &w, vector<int> &used, vector<int> 
                     for(int i = 0; i < word.r.size(); i++, y++) {
                         xy[x][y] = word.r[i];
                         horizontal[x][y] = true;
+                        horizontalY[x][y] = true;
                     }
+                    break;
                 }
             }
         }
